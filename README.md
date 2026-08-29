@@ -48,6 +48,20 @@ src/
 └── components/             # dashboard, command center, workflow DAG, governance, dossiers…
 ```
 
+Runtime stack (rendered live in Settings → Runtime architecture):
+
+```
+Browser
+ ├── React            # view layer, subscribes to the store
+ ├── reducer          # pure state transitions; domain events are the log
+ ├── orchestrator     # Action Engine — owns the workflow state machine
+ ├── planner          # goal → task DAG, risks, review council, pipeline
+ ├── memory           # working · episodic · semantic · preference · procedural
+ ├── approvals        # HIGH / CRITICAL tools always gate on the founder
+ ├── tool execution   # permission-checked, audited, risk-classed registry
+ └── localStorage     # versioned persistence, survives reloads
+```
+
 Design principle: **the application owns state, permissions, tasks, memory, and execution.
 The LLM is a swappable reasoning component.** Deterministic software handles deterministic
 work; AI handles reasoning, planning, and generation.

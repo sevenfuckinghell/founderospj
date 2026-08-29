@@ -41,6 +41,9 @@ import chatPanelTsx from "./components/ChatPanel.tsx?raw";
 import projectResultTsx from "./components/ProjectResult.tsx?raw";
 import providerPanelTsx from "./components/ProviderPanel.tsx?raw";
 import toastsTsx from "./components/Toasts.tsx?raw";
+import bootTsx from "./components/Boot.tsx?raw";
+import architectureTsx from "./components/Architecture.tsx?raw";
+import sourcePanelTsx from "./components/SourcePanel.tsx?raw";
 
 export interface SourceFile {
   path: string;
@@ -85,6 +88,9 @@ export const SOURCE_FILES: SourceFile[] = [
   { path: "src/components/ProjectResult.tsx", content: projectResultTsx },
   { path: "src/components/ProviderPanel.tsx", content: providerPanelTsx },
   { path: "src/components/Toasts.tsx", content: toastsTsx },
+  { path: "src/components/Boot.tsx", content: bootTsx },
+  { path: "src/components/Architecture.tsx", content: architectureTsx },
+  { path: "src/components/SourcePanel.tsx", content: sourcePanelTsx },
 ];
 
 export const byteSize = (s: string): number => new TextEncoder().encode(s).length;

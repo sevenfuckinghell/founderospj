@@ -6,6 +6,7 @@ import { pendingApprovals, truncate, fmtTime } from "../engine/engines";
 import type { Autonomy, RiskLevel } from "../types";
 import { ProviderPanel } from "./ProviderPanel";
 import { SourcePanel } from "./SourcePanel";
+import { ArchitecturePanel } from "./Architecture";
 
 /* ================= APPROVALS ================= */
 
@@ -260,6 +261,9 @@ export function SettingsView() {
   return (
     <div className="space-y-4">
       <ProviderPanel />
+      <Panel title="Runtime architecture — the stack executing right now" delay={40} right={<span className="chip border-cy/30 text-cy">live</span>}>
+        <ArchitecturePanel />
+      </Panel>
       <div className="grid gap-4 xl:grid-cols-2">
       <Panel title="Autonomy level — configurable, never bypasses permissions" delay={0}>
         <div className="space-y-2">
