@@ -11,6 +11,7 @@ import { AIBrain } from "./components/AIBrain";
 import { InsightsView } from "./components/Insights";
 import { ChatPanel } from "./components/ChatPanel";
 import { ProjectResultWindow } from "./components/ProjectResult";
+import { ToastHost } from "./components/Toasts";
 
 function Console() {
   const s = useOS();
@@ -59,6 +60,7 @@ function Console() {
       {view === "settings" && <SettingsView />}
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
       {resultId && <ProjectResultWindow projectId={resultId} onClose={() => setResultId(null)} onSwitch={setResultId} />}
+      <ToastHost />
     </Shell>
   );
 }

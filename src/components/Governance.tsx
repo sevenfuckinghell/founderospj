@@ -5,6 +5,7 @@ import { TOOLS, RISK_LEVEL_ORDER, AUTONOMY_INFO, reviewerById, toolById, policyA
 import { pendingApprovals, truncate, fmtTime } from "../engine/engines";
 import type { Autonomy, RiskLevel } from "../types";
 import { ProviderPanel } from "./ProviderPanel";
+import { SourcePanel } from "./SourcePanel";
 
 /* ================= APPROVALS ================= */
 
@@ -318,6 +319,10 @@ export function SettingsView() {
               </tbody>
             </table>
           </div>
+        </Panel>
+
+        <Panel title="Source code & export — take the whole product with you" delay={120}>
+          <SourcePanel />
         </Panel>
 
         <Panel title="Integrations" delay={140}>

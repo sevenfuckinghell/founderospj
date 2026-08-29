@@ -222,6 +222,12 @@ body {
 }
 .slide-in { animation: slideIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.toast-in { animation: toastIn 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
+
 @keyframes barGrow { from { width: 0; } }
 .bar-grow { animation: barGrow 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 
