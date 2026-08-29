@@ -1,26 +1,98 @@
-import { useOS, useActiveProject } from "../store";
+import { useOS, useActions, useActiveProject } from "../store";
 import { Icon, Panel, Stat, cx, useNow, TimeAgo, EmptyState } from "./ui";
+import { agentById } from "../data/registry";
 import { truncate } from "../engine/engines";
+import type { Recommendation } from "../types";
+
+const SOURCE_META: Record<Recommendation["source"], { label: string; cls: string }> = {
+  COUNCIL:  { label: "council",  cls: "border-cy/35 text-cy bg-cy/10" },
+  LEARNING: { label: "learning", cls: "border-mint/35 text-mint bg-mint/10" },
+  MEASURE:  { label: "measure",  cls: "border-amber/35 text-amber bg-amber/10" },
+};
+
+function RecommendationCard({ rec, onQueue, onDismiss }: {
+  rec: Recommendation;
+  onQueue: (id: string) => void;
+  onDismiss: (id: string) => void;
+}) {
+  const src = SOURCE_META[rec.source];
+  const agent = agentById(rec.agentId);
+  const queued = rec.status === "QUEUED";
+  const dismissed = rec.status === "DISMISSED";
+
+  return (
+    <li
+      className={cx(
+        "group relative overflow-hidden rounded-md border px-3.5 py-3 transition-all duration-200",
+        dismissed
+          ? "border-line bg-ink-900/30 opacity-40"
+          : queued
+            ? "border-mint/30 bg-mint/5"
+            : "border-line bg-ink-900/50 hover:-translate-y-px hover:border-cy/40 hover:shadow-[0_4px_18px_rgba(86,200,240,0.07)]",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <span className={cx("chip border", src.cls)}>{src.label}</span>
+          <span className="chip border-line2 text-sub">
+            <Icon name="bot" size={10} /> {agent.name}
+          </span>
+        </div>
+        <TimeAgo ts={rec.ts} now={Date.now()} />
+      </div>
+
+      <p className={cx("mt-2 text-[12.5px] leading-snug", dismissed ? "text-mut line-through" : "text-txt")}>
+        {rec.text}
+      </p>
+
+      {queued ? (
+        <div className="mt-2.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-mint">
+          <Icon name="check" size={11} /> queued → entered the execution loop as a task
+        </div>
+      ) : dismissed ? (
+        <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.1em] text-mut">dismissed</div>
+      ) : (
+        <div className="mt-2.5 flex items-center gap-2 opacity-90 transition-opacity group-hover:opacity-100">
+          <button className="btn btn-mint px-2.5 py-1 text-[11px]" onClick={() => onQueue(rec.id)}>
+            <Icon name="zap" size={11} /> Queue as task
+          </button>
+          <button
+            className="btn btn-ghost px-2 py-1 text-[11px] text-mut hover:text-coral"
+            onClick={() => onDismiss(rec.id)}
+            title="Dismiss recommendation"
+          >
+            <Icon name="x" size={11} /> Dismiss
+          </button>
+        </div>
+      )}
+    </li>
+  );
+}
 
 export function InsightsView() {
   const s = useOS();
+  const a = useActions();
   const p = useActiveProject();
   const now = useNow(1000);
 
   const scope = <T extends { projectId: string }>(xs: T[]) => xs.filter((x) => !p || x.projectId === p.id);
 
   const runs = scope(s.runs);
-  const tokens = runs.reduce((a, r) => a + r.tokens, 0);
-  const cost = runs.reduce((a, r) => a + r.cost, 0);
+  const tokens = runs.reduce((acc, r) => acc + r.tokens, 0);
+  const cost = runs.reduce((acc, r) => acc + r.cost, 0);
   const cycle = scope(s.metrics).filter((m) => m.name === "task.cycle_time");
-  const avgCycle = cycle.length ? Math.round(cycle.reduce((a, m) => a + m.value, 0) / cycle.length) : 0;
-  const decided = s.approvals.filter((a2) => a2.status !== "PENDING" && (!p || a2.projectId === p.id));
-  const approvalRate = decided.length ? Math.round((decided.filter((a2) => a2.status === "APPROVED").length / decided.length) * 100) : 100;
+  const avgCycle = cycle.length ? Math.round(cycle.reduce((acc, m) => acc + m.value, 0) / cycle.length) : 0;
+  const decided = s.approvals.filter((x) => x.status !== "PENDING" && (!p || x.projectId === p.id));
+  const approvalRate = decided.length ? Math.round((decided.filter((x) => x.status === "APPROVED").length / decided.length) * 100) : 100;
   const recoveries = scope(s.tasks).filter((t) => t.retryCount > 0 && t.status === "COMPLETED").length;
   const outcomes = scope(s.metrics).filter((m) => m.name !== "task.cycle_time");
   const learnings = scope(s.learnings).slice().reverse();
-  const agg = scope(s.aggregates).slice(-1)[0];
   const completedTasks = scope(s.tasks).filter((t) => t.status === "COMPLETED").length;
+
+  const recs = scope(s.recommendations);
+  const suggested = recs.filter((r) => r.status === "SUGGESTED").sort((x, y) => y.ts - x.ts);
+  const queued = recs.filter((r) => r.status === "QUEUED").sort((x, y) => y.ts - x.ts);
+  const dismissed = recs.filter((r) => r.status === "DISMISSED").slice(-2);
 
   return (
     <div className="space-y-4">
@@ -58,19 +130,38 @@ export function InsightsView() {
             </p>
           </Panel>
 
-          <Panel title="Recommendations — feeding the next loop" delay={120}>
-            {(agg?.changes.length ?? 0) === 0 ? (
-              <p className="text-[12px] text-mut">Recommendations appear after the review council or a measurement cycle.</p>
+          <Panel
+            title="Recommendations — feeding the next loop"
+            delay={120}
+            right={
+              <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.12em] text-mut">
+                <Icon name="refresh" size={11} className="text-cy" />
+                {suggested.length} open · {queued.length} queued
+              </span>
+            }
+          >
+            {suggested.length === 0 && queued.length === 0 ? (
+              <EmptyState
+                icon="refresh"
+                title="No recommendations yet"
+                hint="Recommendations are harvested from the review council, the learning engine, and measurement — then you can queue them straight into the loop."
+              />
             ) : (
-              <ul className="space-y-1.5">
-                {(agg?.changes ?? []).map((c, i) => (
-                  <li key={i} className="flex items-start gap-2 rounded-md border border-line bg-ink-900/50 px-3 py-2.5">
-                    <Icon name="arrow" size={13} className="mt-0.5 shrink-0 text-cy" />
-                    <span className="text-[12.5px] text-sub">{c}</span>
-                  </li>
+              <ul className="space-y-2.5">
+                {suggested.map((r) => (
+                  <RecommendationCard key={r.id} rec={r} onQueue={a.queueRecommendation} onDismiss={a.dismissRecommendation} />
+                ))}
+                {queued.map((r) => (
+                  <RecommendationCard key={r.id} rec={r} onQueue={a.queueRecommendation} onDismiss={a.dismissRecommendation} />
+                ))}
+                {dismissed.map((r) => (
+                  <RecommendationCard key={r.id} rec={r} onQueue={a.queueRecommendation} onDismiss={a.dismissRecommendation} />
                 ))}
               </ul>
             )}
+            <p className="mt-3 border-t border-line pt-2.5 font-mono text-[9.5px] leading-relaxed text-mut">
+              queueing turns a recommendation into a READY task owned by the matched agent — it joins the priority-ordered execution loop. still subject to approval gates.
+            </p>
           </Panel>
         </div>
 

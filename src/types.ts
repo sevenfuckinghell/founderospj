@@ -260,6 +260,20 @@ export interface ChatMsg {
   ts: number;
 }
 
+export type RecommendationSource = "COUNCIL" | "LEARNING" | "MEASURE";
+export type RecommendationStatus = "SUGGESTED" | "QUEUED" | "DISMISSED";
+
+export interface Recommendation {
+  id: string;
+  projectId: string;
+  text: string;
+  source: RecommendationSource;
+  agentId: string;
+  status: RecommendationStatus;
+  taskId?: string;
+  ts: number;
+}
+
 export interface OSState {
   v: number;
   seed: number;
@@ -283,6 +297,7 @@ export interface OSState {
   metrics: Metric[];
   reasoning: ReasoningEntry[];
   chat: ChatMsg[];
+  recommendations: Recommendation[];
 }
 
 export interface GoalInput {

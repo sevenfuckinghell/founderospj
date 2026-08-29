@@ -1,5 +1,6 @@
 import type {
   OSState, GoalInput, Project, Task, AgentRun, Autonomy, Approval, RiskLevel,
+  Recommendation, RecommendationSource, ArtifactType,
 } from "../types";
 import {
   assembleTasks, assembleRisks, pipelineScript, artifactFor, detectDomain, DOMAIN_LABEL, getPack, truncate,
@@ -25,6 +26,8 @@ export type Action =
   | { type: "CHAT"; text: string; now: number }
   | { type: "SET_ACTIVE"; id: string }
   | { type: "RETRY_TASK"; id: string; now: number }
+  | { type: "QUEUE_RECOMMENDATION"; id: string; now: number }
+  | { type: "DISMISS_RECOMMENDATION"; id: string }
   | { type: "RESET"; now: number };
 
 const clone = (s: OSState): OSState => structuredClone(s);
@@ -203,6 +206,7 @@ function advancePlanning(s: OSState, p: Project, now: number) {
       const { reviews, agg } = runCouncil(p.id, p.domain, p.planVersion, now, rng(s.seed + p.planVersion));
       s.reviews.push(...reviews);
       s.aggregates.push(agg);
+      genRecommendations(s, p.id, agg.changes, "COUNCIL", now);
       emit(s, p.id, "REVIEW_COMPLETED", `Council pass ${p.planVersion}: overall ${agg.overall}/10 — ${agg.status}`);
     }
     const next = p.pipeline.find((st) => st.status === "waiting");
@@ -243,6 +247,7 @@ function skipPlanning(s: OSState, p: Project, now: number) {
         const { reviews, agg } = runCouncil(p.id, p.domain, p.planVersion, now, rng(s.seed + p.planVersion));
         s.reviews.push(...reviews);
         s.aggregates.push(agg);
+        genRecommendations(s, p.id, agg.changes, "COUNCIL", now);
       }
     }
   }
@@ -318,6 +323,7 @@ function advanceMeasuring(s: OSState, p: Project, now: number) {
   const learnings = makeLearnings(p.id, p.domain, now, hadFailure);
   s.learnings.push(...learnings);
   for (const l of learnings) emit(s, p.id, "LEARNING_CREATED", truncate(l.lesson, 90));
+  genRecommendations(s, p.id, learnings.slice(0, 3).map((l) => l.lesson), "LEARNING", now);
   s.memories.push(memory(p.id, now, "PROCEDURAL",
     `Completed workflow for “${truncate(goal?.title ?? p.name, 50)}”: validation→gates→build→measure held up${hadFailure ? ", including one recovered failure" : ""}.`,
     "learning-engine", 0.88, 9));
@@ -346,6 +352,84 @@ export function advance(state: OSState, now: number): OSState {
   }
   s.seed = (s.seed + 7919) % 2147483647;
   return s;
+}
+
+/* ---------------- recommendation engine ----------------
+   Recommendations are harvested from real outputs (council, learnings,
+   measurement) and can be queued into the loop as READY tasks — they are
+   the mechanism that "feeds the next loop". */
+
+const REC_RULES: Array<{ re: RegExp; agent: string }> = [
+  { re: /architect|api|data model|schema|tech choice/i, agent: "architect" },
+  { re: /test|regression|edge case|qa\b/i, agent: "testing" },
+  { re: /readme|doc\b|documentation|guide/i, agent: "docs" },
+  { re: /customer|interview|discovery|persona|research|market\b|competitor/i, agent: "research" },
+  { re: /landing|copy|campaign|seo|positioning|marketing|lead|funnel|conversion|brand|content/i, agent: "marketing" },
+  { re: /wireframe|design|ux\b|ui\b|component|page\b|interactive|sample output/i, agent: "ui" },
+  { re: /ship|build|implement|module|backend|frontend|deploy/i, agent: "coding" },
+  { re: /scope|priorit|roadmap|plan|workflow|milestone|narrow/i, agent: "planner" },
+];
+
+function agentForRecommendation(text: string): string {
+  for (const r of REC_RULES) if (r.re.test(text)) return r.agent;
+  return "planner";
+}
+
+const AGENT_DELIVERABLE: Record<string, ArtifactType> = {
+  coding: "CODE", ui: "UI", marketing: "MARKETING", research: "REPORT",
+  testing: "DATA", architect: "DOCUMENT", planner: "DOCUMENT", docs: "DOCUMENT",
+};
+
+function genRecommendations(s: OSState, projectId: string, texts: string[], source: RecommendationSource, ts: number) {
+  for (const text of texts) {
+    const clean = text.trim();
+    if (!clean) continue;
+    const dupe = s.recommendations.some((r) => r.projectId === projectId && r.text === clean);
+    if (dupe) continue;
+    s.recommendations.push({
+      id: uid("rec"), projectId, text: clean, source,
+      agentId: agentForRecommendation(clean), status: "SUGGESTED", ts,
+    });
+  }
+  /* keep the store bounded — newest suggested first, drop stale dismissed */
+  const scoped = s.recommendations.filter((r) => r.projectId === projectId);
+  if (scoped.length > 12) {
+    const drop = scoped.filter((r) => r.status === "DISMISSED").slice(0, scoped.length - 12).map((r) => r.id);
+    s.recommendations = s.recommendations.filter((r) => !drop.includes(r.id));
+  }
+}
+
+function queueRecommendation(s: OSState, id: string, now: number) {
+  const rec = s.recommendations.find((r) => r.id === id);
+  if (!rec || rec.status !== "SUGGESTED") return;
+  const p = s.projects.find((pp) => pp.id === rec.projectId);
+  const task: Task = {
+    id: uid("tsk"), projectId: rec.projectId, key: `rec-${rec.id.slice(4, 10)}`,
+    title: `Recommendation — ${truncate(rec.text, 46)}`,
+    desc: `Founder-queued recommendation (${rec.source.toLowerCase()}). Owning agent proposes the concrete next step.`,
+    status: p?.phase === "EXECUTING" ? "READY" : "PLANNED",
+    agentId: rec.agentId, dependsOn: [], tools: [],
+    deliverable: AGENT_DELIVERABLE[rec.agentId] ?? "DOCUMENT",
+    priorityScore: 55, priorityReason: "founder-queued recommendation · urgency 7 · founder-directed",
+    factors: { value: 7, urgency: 7, dependency: 2, risk: 2, effort: 3 },
+    acceptance: ["Concrete next step proposed", "Output filed as an artifact"],
+    retryCount: 0, willFailOnce: false, progress: 0, createdAt: now,
+  };
+  s.tasks.push(task);
+  s.recommendations = s.recommendations.map((r) => (r.id === id ? { ...r, status: "QUEUED", taskId: task.id } : r));
+  emit(s, rec.projectId, "TASK_CREATED", `Recommendation queued → ${agentById(rec.agentId).name} (“${truncate(rec.text, 40)}”)`);
+  s.reasoning.push(reasoning(rec.projectId, now, {
+    decision: `Turn “${truncate(rec.text, 48)}” into an executable task for ${agentById(rec.agentId).name}`,
+    why: "Founder queued a harvested recommendation — this is the loop closing into the next cycle",
+    evidence: `Source: ${rec.source.toLowerCase()} · capability match → ${agentById(rec.agentId).name}`,
+    riskNote: "Queued as a normal task: still subject to priority ordering and approval gates",
+    next: p?.phase === "EXECUTING" ? "Enters the READY queue and runs in priority order" : "Attached to the project; runs once execution starts",
+    confidence: 0.8,
+  }));
+}
+
+function dismissRecommendation(s: OSState, id: string) {
+  s.recommendations = s.recommendations.map((r) => (r.id === id ? { ...r, status: "DISMISSED" } : r));
 }
 
 /* ---------------- goal intake ---------------- */
@@ -426,6 +510,7 @@ function decideApproval(s: OSState, id: string, decision: "APPROVED" | "REJECTED
       const { reviews, agg } = runCouncil(p.id, p.domain, p.planVersion, now, rng(s.seed + p.planVersion * 13));
       s.reviews.push(...reviews);
       s.aggregates.push(agg);
+      genRecommendations(s, p.id, agg.changes, "COUNCIL", now);
       s.approvals.push({
         id: uid("apr"), projectId: p.id, kind: "PLAN",
         title: `Execution plan v${p.planVersion} — revised`,
@@ -565,6 +650,7 @@ function handleCommand(s: OSState, raw: string, now: number): string {
     const tech = reviews.find((r) => r.reviewerId === "technical") ?? reviews[0];
     s.reviews.push(...reviews);
     s.aggregates.push(agg);
+    genRecommendations(s, p.id, agg.changes, "COUNCIL", now);
     emit(s, p.id, "REVIEW_COMPLETED", `Extra council pass: overall ${agg.overall}/10`);
     return `Ran a full evaluation pass (6 reviewers, labeled as independent passes).\nOverall ${agg.overall}/10 — ${agg.status}.\nTechnical reviewer: ${tech.weaknesses[0] ?? "no blocking weakness"} → suggests: ${tech.recommendations[0] ?? "—"}. Full detail in Reviews.`;
   }
@@ -623,11 +709,12 @@ function handleCommand(s: OSState, raw: string, now: number): string {
 
 function seedState(now: number): OSState {
   const s: OSState = {
-    v: 3, seed: 20260214, paused: false, autonomy: "ASSISTED",
+    v: 4, seed: 20260214, paused: false, autonomy: "ASSISTED",
     activeProjectId: null, startedAt: now - 3 * 3600_000,
     projects: [], goals: [], tasks: [], runs: [], artifacts: [], risks: [],
     reviews: [], aggregates: [], approvals: [], toolExecs: [], events: [],
     memories: [], learnings: [], metrics: [], reasoning: [], chat: [],
+    recommendations: [],
   };
   const H = 3600_000;
   const t0 = now - 3 * H;
@@ -663,6 +750,7 @@ function seedState(now: number): OSState {
   const { reviews, agg } = runCouncil(pid, domain, 1, t0 + 20 * 60_000, rng(77));
   s.reviews.push(...reviews);
   s.aggregates.push(agg);
+  genRecommendations(s, pid, agg.changes, "COUNCIL", t0 + 22 * 60_000);
   emit(s, pid, "REVIEW_COMPLETED", `Council pass 1: overall ${agg.overall}/10`, t0 + 22 * 60_000);
   s.approvals.push({
     id: "apr_plan_demo", projectId: pid, kind: "PLAN",
@@ -812,6 +900,16 @@ export function reducer(state: OSState, action: Action): OSState {
     case "RETRY_TASK": {
       const s = clone(state);
       retryTask(s, action.id, action.now);
+      return s;
+    }
+    case "QUEUE_RECOMMENDATION": {
+      const s = clone(state);
+      queueRecommendation(s, action.id, action.now);
+      return s;
+    }
+    case "DISMISS_RECOMMENDATION": {
+      const s = clone(state);
+      dismissRecommendation(s, action.id);
       return s;
     }
     case "RESET":

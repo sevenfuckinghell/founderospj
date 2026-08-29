@@ -4,15 +4,20 @@ import type { OSState, GoalInput, Autonomy } from "./types";
 import { reducer, createInitialState } from "./engine/orchestrator";
 import type { Action } from "./engine/orchestrator";
 
-const LS_KEY = "founder-os-state-v3";
+const LS_KEY = "founder-os-state-v4";
 
 function loadInitial(): OSState {
   const now = Date.now();
   try {
+    localStorage.removeItem("founder-os-state-v3");
+  } catch {
+    /* non-fatal */
+  }
+  try {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as OSState;
-      if (parsed && parsed.v === 3 && Array.isArray(parsed.projects)) return parsed;
+      if (parsed && parsed.v === 4 && Array.isArray(parsed.projects)) return parsed;
     }
   } catch {
     /* corrupted storage → reseed */
@@ -30,6 +35,8 @@ interface OSActions {
   chat: (text: string) => void;
   setActive: (id: string) => void;
   retryTask: (id: string) => void;
+  queueRecommendation: (id: string) => void;
+  dismissRecommendation: (id: string) => void;
   reset: () => void;
 }
 
@@ -72,6 +79,8 @@ export function OSProvider({ children }: { children: ReactNode }) {
       chat: (text) => dispatch({ type: "CHAT", text, now: Date.now() }),
       setActive: (id) => dispatch({ type: "SET_ACTIVE", id }),
       retryTask: (id) => dispatch({ type: "RETRY_TASK", id, now: Date.now() }),
+      queueRecommendation: (id) => dispatch({ type: "QUEUE_RECOMMENDATION", id, now: Date.now() }),
+      dismissRecommendation: (id) => dispatch({ type: "DISMISS_RECOMMENDATION", id }),
       reset: () => dispatch({ type: "RESET", now: Date.now() }),
     }),
     [],
