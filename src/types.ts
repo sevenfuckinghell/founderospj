@@ -262,6 +262,13 @@ export interface ChatMsg {
   ts: number;
 }
 
+export interface Workspace {
+  name: string;
+  founder: string;
+  onboarded: boolean;
+  createdAt: number;
+}
+
 export type RecommendationSource = "COUNCIL" | "LEARNING" | "MEASURE";
 export type RecommendationStatus = "SUGGESTED" | "QUEUED" | "DISMISSED";
 
@@ -281,6 +288,7 @@ export interface OSState {
   seed: number;
   paused: boolean;
   autonomy: Autonomy;
+  workspace: Workspace;
   activeProjectId: string | null;
   startedAt: number;
   providerConfig: ProviderConfig;

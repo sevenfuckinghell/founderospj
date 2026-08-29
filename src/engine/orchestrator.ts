@@ -19,6 +19,7 @@ import { DEFAULT_PROVIDER_CONFIG, resolveModel, costFor } from "../providers";
 
 export type Action =
   | { type: "TICK"; now: number }
+  | { type: "COMPLETE_ONBOARDING"; now: number; name: string; founder: string; autonomy: Autonomy; reasoningModel: string; fastModel: string; loadDemo: boolean }
   | { type: "SUBMIT_GOAL"; input: GoalInput; now: number }
   | { type: "DECIDE_APPROVAL"; id: string; decision: "APPROVED" | "REJECTED"; now: number }
   | { type: "SET_AUTONOMY"; level: Autonomy; now: number }
@@ -717,6 +718,7 @@ function seedState(now: number): OSState {
   const s: OSState = {
     v: 4, seed: 20260214, paused: false, autonomy: "ASSISTED",
     activeProjectId: null, startedAt: now - 3 * 3600_000,
+    workspace: { name: "Founder Workspace", founder: "Founder", onboarded: false, createdAt: now },
     providerConfig: structuredClone(DEFAULT_PROVIDER_CONFIG),
     projects: [], goals: [], tasks: [], runs: [], artifacts: [], risks: [],
     reviews: [], aggregates: [], approvals: [], toolExecs: [], events: [],
@@ -862,6 +864,23 @@ export function reducer(state: OSState, action: Action): OSState {
   switch (action.type) {
     case "TICK":
       return advance(state, action.now);
+    case "COMPLETE_ONBOARDING": {
+      const base = action.loadDemo ? seedState(action.now) : emptyState(action.now);
+      base.workspace = {
+        name: action.name.trim() || "Founder Workspace",
+        founder: action.founder.trim() || "Founder",
+        onboarded: true,
+        createdAt: action.now,
+      };
+      base.autonomy = action.autonomy;
+      base.providerConfig.roles.reasoning = action.reasoningModel;
+      base.providerConfig.roles.fast = action.fastModel;
+      if (action.loadDemo) {
+        emit(base, base.activeProjectId ?? "system", "WORKSPACE_READY", `Demo workspace loaded for ${base.workspace.founder}`, action.now);
+      }
+      say(base, `Welcome, ${base.workspace.founder}. Workspace “${base.workspace.name}” is live — autonomy ${action.autonomy}, reasoning on ${resolveModel(base.providerConfig, "planner")}. ${action.loadDemo ? "The Healthcare SaaS demo is mid-execution and one approval is waiting on you." : "Give me your first goal whenever you're ready."}`, action.now);
+      return base;
+    }
     case "SUBMIT_GOAL": {
       const s = clone(state);
       submitGoal(s, action.input, action.now);
@@ -947,11 +966,33 @@ export function reducer(state: OSState, action: Action): OSState {
       dismissRecommendation(s, action.id);
       return s;
     }
-    case "RESET":
-      return seedState(action.now);
+    case "RESET": {
+      const s = seedState(action.now);
+      s.workspace = state.workspace;
+      s.providerConfig = state.providerConfig;
+      return s;
+    }
     default:
       return state;
   }
+}
+
+/* ---------------- fresh boot (no demo data) ---------------- */
+
+function emptyState(now: number): OSState {
+  const s: OSState = {
+    v: 4, seed: (now % 2147483647) || 42, paused: false, autonomy: "ASSISTED",
+    activeProjectId: null, startedAt: now,
+    workspace: { name: "Founder Workspace", founder: "Founder", onboarded: false, createdAt: now },
+    providerConfig: structuredClone(DEFAULT_PROVIDER_CONFIG),
+    projects: [], goals: [], tasks: [], runs: [], artifacts: [], risks: [],
+    reviews: [], aggregates: [], approvals: [], toolExecs: [], events: [],
+    memories: [], learnings: [], metrics: [], reasoning: [], chat: [],
+    recommendations: [],
+  };
+  emit(s, "system", "SYSTEM_READY", "Founder OS booted — console idle, awaiting first goal", now);
+  say(s, "Console online. No projects yet — give me a goal and I'll run the full pipeline: plan → council review → your approval → build → measure → learn.", now);
+  return s;
 }
 
 export const createInitialState = (now: number): OSState => seedState(now);

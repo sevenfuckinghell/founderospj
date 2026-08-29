@@ -22,6 +22,9 @@ function loadInitial(): OSState {
       if (parsed && parsed.v === 4 && Array.isArray(parsed.projects)) {
         if (!parsed.providerConfig) parsed.providerConfig = structuredClone(DEFAULT_PROVIDER_CONFIG);
         if (!parsed.recommendations) parsed.recommendations = [];
+        if (!parsed.workspace) {
+          parsed.workspace = { name: "Founder Workspace", founder: "Founder", onboarded: true, createdAt: parsed.startedAt };
+        }
         return parsed;
       }
     }
@@ -33,6 +36,7 @@ function loadInitial(): OSState {
 
 interface OSActions {
   tick: (now: number) => void;
+  completeOnboarding: (o: { name: string; founder: string; autonomy: Autonomy; reasoningModel: string; fastModel: string; loadDemo: boolean }) => void;
   submitGoal: (input: GoalInput) => void;
   decideApproval: (id: string, decision: "APPROVED" | "REJECTED") => void;
   setAutonomy: (level: Autonomy) => void;
@@ -80,6 +84,7 @@ export function OSProvider({ children }: { children: ReactNode }) {
   const actions = useMemo<OSActions>(
     () => ({
       tick: (now) => dispatch({ type: "TICK", now }),
+      completeOnboarding: (o) => dispatch({ type: "COMPLETE_ONBOARDING", now: Date.now(), ...o }),
       submitGoal: (input) => dispatch({ type: "SUBMIT_GOAL", input, now: Date.now() }),
       decideApproval: (id, decision) => dispatch({ type: "DECIDE_APPROVAL", id, decision, now: Date.now() }),
       setAutonomy: (level) => dispatch({ type: "SET_AUTONOMY", level, now: Date.now() }),
