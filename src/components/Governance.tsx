@@ -7,6 +7,7 @@ import type { Autonomy, RiskLevel } from "../types";
 import { ProviderPanel } from "./ProviderPanel";
 import { SourcePanel } from "./SourcePanel";
 import { ArchitecturePanel } from "./Architecture";
+import { TopologyPanel } from "./Topology";
 
 /* ================= APPROVALS ================= */
 

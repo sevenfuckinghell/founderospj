@@ -228,6 +228,13 @@ body {
 }
 .toast-in { animation: toastIn 0.26s cubic-bezier(0.22, 1, 0.36, 1); }
 
+@keyframes flowDot {
+  0% { transform: translate(-50%, -8px); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(-50%, 30px); opacity: 0; }
+}
+.flow-dot { animation: flowDot 1.5s linear infinite; }
+
 @keyframes barGrow { from { width: 0; } }
 .bar-grow { animation: barGrow 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 
