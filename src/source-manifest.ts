@@ -54,6 +54,14 @@ import serverWorker from "../server/worker.py?raw";
 import serverSchema from "../server/schema.sql?raw";
 import dockerCompose from "../docker-compose.yml?raw";
 
+import desktopMain from "../desktop/main.cjs?raw";
+import desktopPreload from "../desktop/preload.cjs?raw";
+import desktopPkg from "../desktop/package.json?raw";
+import runLocalBat from "../scripts/run-local.bat?raw";
+import buildDesktopBat from "../scripts/build-desktop.bat?raw";
+import readmeWindows from "../README-WINDOWS.md?raw";
+import webManifest from "../public/manifest.webmanifest?raw";
+
 export interface SourceFile {
   path: string;
   content: string;

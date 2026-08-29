@@ -1,0 +1,43 @@
+{
+  "name": "founder-os-desktop",
+  "version": "4.2.0",
+  "private": true,
+  "description": "Founder OS — AI Operating Console (desktop shell)",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "build:web": "cd .. && npm install && npm run build",
+    "dist": "npm run build:web && electron-builder --win",
+    "dist:all": "npm run build:web && electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "io.founder.os",
+    "productName": "Founder OS",
+    "copyright": "Founder OS — MIT",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      { "from": "../dist", "to": "dist" }
+    ],
+    "win": {
+      "target": ["nsis", "portable"]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Founder OS"
+    }
+  }
+}
