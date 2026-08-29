@@ -141,6 +141,42 @@ export function SourcePanel() {
         })}
       </div>
 
+      {/* push to github */}
+      <div className="mt-3 rounded-md border border-line bg-ink-950/70 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="panel-title">push everything to github</span>
+          <button
+            className="btn py-1 text-[10.5px]"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(
+                  "git init -b main\ngit add -A\ngit commit -m \"Founder OS v4.2 — AI operating console\"\ngit remote add origin https://github.com/YOU/founder-os.git\ngit push -u origin main",
+                );
+                toast("ok", "Commands copied", "Paste them in the unzipped project folder (or run scripts/push-github.bat).");
+              } catch {
+                toast("warn", "Clipboard blocked", "Select and copy the commands manually.");
+              }
+            }}
+          >
+            <Icon name="send" size={11} /> copy commands
+          </button>
+        </div>
+        <pre className="mt-2 overflow-x-auto rounded border border-line/60 bg-ink-900 p-2.5 font-mono text-[10.5px] leading-[1.8] text-sub">
+{`git init -b main
+git add -A
+git commit -m "Founder OS v4.2 — AI operating console"
+git remote add origin https://github.com/YOU/founder-os.git
+git push -u origin main`}
+        </pre>
+        <p className="mt-2 text-[10.5px] leading-relaxed text-mut">
+          Or one-click on Windows: unzip the source, then double-click{" "}
+          <span className="font-mono text-sub">scripts\push-github.bat</span> — it initializes the repo, commits,
+          asks for your repo URL and pushes. <span className="font-mono text-sub">.gitignore</span> already excludes{" "}
+          <span className="font-mono text-amber/90">.env</span>, keys, <span className="font-mono">node_modules</span> and build output.
+          Auth happens via GitHub's browser sign-in or a Personal Access Token.
+        </p>
+      </div>
+
       <p className="mt-2.5 text-[10.5px] leading-relaxed text-mut">
         The export is the real thing — every file above is embedded verbatim in this build and zipped in your browser.
         Unzip, <span className="font-mono text-sub">npm install</span>, <span className="font-mono text-sub">npm run dev</span> and you have the full

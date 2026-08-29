@@ -1,5 +1,30 @@
+# dependencies
 node_modules/
-.next/
+desktop/node_modules/
+
+# build output
 dist/
 build/
+desktop/release/
+
+# environment / secrets — never commit
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# logs
 *.log
+npm-debug.log*
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# misc
+.next/
+coverage/
