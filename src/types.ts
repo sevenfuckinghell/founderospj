@@ -2,6 +2,8 @@
 /* Founder OS — core domain model                                      */
 /* ------------------------------------------------------------------ */
 
+import type { ProviderConfig } from "./providers";
+
 export type TaskStatus =
   | "BACKLOG" | "PLANNED" | "READY" | "RUNNING" | "WAITING" | "REVIEW"
   | "APPROVED" | "COMPLETED" | "FAILED" | "BLOCKED" | "CANCELLED";
@@ -281,6 +283,7 @@ export interface OSState {
   autonomy: Autonomy;
   activeProjectId: string | null;
   startedAt: number;
+  providerConfig: ProviderConfig;
   projects: Project[];
   goals: Goal[];
   tasks: Task[];

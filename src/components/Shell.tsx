@@ -3,6 +3,7 @@ import { useOS, useActions } from "../store";
 import { Icon, cx, StatusBadge } from "./ui";
 import { pendingApprovals } from "../engine/engines";
 import { fmtClock, cx as cx2 } from "../engine/engines";
+import { modelById } from "../providers";
 
 export type ViewId =
   | "dashboard" | "command" | "goals" | "projects" | "tasks" | "agents"
@@ -156,6 +157,19 @@ export function Shell({ view, setView, onToggleChat, chatOpen, children }: {
             </select>
           )}
           <div className="ml-auto flex items-center gap-2">
+            <button
+              className="btn hidden items-center gap-2 px-2.5 py-1.5 sm:flex"
+              onClick={() => setView("settings")}
+              title="AI model routing — open settings"
+            >
+              <span className={cx(
+                "h-1.5 w-1.5 rounded-full",
+                Object.values(s.providerConfig.verified).some(Boolean) ? "bg-mint pulse-dot"
+                : s.providerConfig.roles.reasoning.startsWith("demo-") ? "bg-amber pulse-dot-amber" : "bg-cy",
+              )} />
+              <span className="font-mono text-[10.5px] text-sub">{modelById(s.providerConfig.roles.reasoning).name}</span>
+              <Icon name="gear" size={11} className="text-mut" />
+            </button>
             <span className="hidden font-mono text-[11px] text-mut md:block">
               {fmtClock(Date.now())} local
             </span>

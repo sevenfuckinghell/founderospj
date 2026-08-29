@@ -4,6 +4,7 @@ import { Icon, Panel, StatusBadge, RiskLevelBadge, cx, useNow, TimeAgo, EmptySta
 import { TOOLS, RISK_LEVEL_ORDER, AUTONOMY_INFO, reviewerById, toolById, policyAllows } from "../data/registry";
 import { pendingApprovals, truncate, fmtTime } from "../engine/engines";
 import type { Autonomy, RiskLevel } from "../types";
+import { ProviderPanel } from "./ProviderPanel";
 
 /* ================= APPROVALS ================= */
 
@@ -256,7 +257,9 @@ export function SettingsView() {
   ];
 
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
+    <div className="space-y-4">
+      <ProviderPanel />
+      <div className="grid gap-4 xl:grid-cols-2">
       <Panel title="Autonomy level — configurable, never bypasses permissions" delay={0}>
         <div className="space-y-2">
           {(Object.keys(AUTONOMY_INFO) as Autonomy[]).map((lvl) => (
@@ -317,27 +320,6 @@ export function SettingsView() {
           </div>
         </Panel>
 
-        <Panel title="AI provider — demo mode" delay={100}>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {[
-              ["DEMO_MODE", "true"],
-              ["AI_PROVIDER", "demo-mock (deterministic)"],
-              ["REASONING_MODEL", "demo-reason-4"],
-              ["FAST_MODEL", "demo-fast-2"],
-              ["EMBEDDING_MODEL", "not configured"],
-              ["DATABASE_URL", "browser localStorage (v3)"],
-            ].map(([k, v]) => (
-              <div key={k} className="rounded-md border border-line bg-ink-950/70 px-3 py-2">
-                <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-mut">{k}</p>
-                <p className="mt-0.5 font-mono text-[11.5px] text-sub">{v}</p>
-              </div>
-            ))}
-          </div>
-          <p className="mt-3 text-[11.5px] leading-relaxed text-mut">
-            The OS is provider-agnostic: <span className="font-mono text-[10.5px] text-sub">AIProvider.generate() / generate_structured() / stream() / embed()</span>. Point the env vars at a real provider to replace the deterministic demo engine — contracts stay identical. No API keys are stored in the client.
-          </p>
-        </Panel>
-
         <Panel title="Integrations" delay={140}>
           <ul className="space-y-2">
             {integrations.map((it) => (
@@ -389,6 +371,7 @@ export function SettingsView() {
             )}
           </div>
         </Panel>
+      </div>
       </div>
     </div>
   );

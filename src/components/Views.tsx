@@ -4,6 +4,7 @@ import { Icon, Panel, StatusBadge, ProgressBar, RiskLevelBadge, cx, useNow, Time
 import { PhaseChip } from "./Shell";
 import { AGENTS, agentById, toolById } from "../data/registry";
 import { getPack } from "../engine/planner";
+import { resolveModel, modelById } from "../providers";
 import { projectProgress, severityTone, truncate, fmtAgo } from "../engine/engines";
 import type { Project, Task } from "../types";
 
@@ -316,7 +317,7 @@ export function AgentsView() {
                     <span className="font-display text-[13.5px] font-bold">{ag.name}</span>
                     {live && <span className="h-1.5 w-1.5 rounded-full bg-cy pulse-dot" />}
                   </div>
-                  <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-mut">{ag.version} · {ag.model}</span>
+                  <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-mut">{ag.version} · {modelById(resolveModel(s.providerConfig, ag.id)).name}</span>
                 </div>
               </div>
               <p className="mt-2.5 text-[11.5px] leading-snug text-sub">{ag.role}</p>

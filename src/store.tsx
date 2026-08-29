@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import type { OSState, GoalInput, Autonomy } from "./types";
 import { reducer, createInitialState } from "./engine/orchestrator";
 import type { Action } from "./engine/orchestrator";
+import { DEFAULT_PROVIDER_CONFIG } from "./providers";
+import type { ModelRole } from "./providers";
 
 const LS_KEY = "founder-os-state-v4";
 
@@ -17,7 +19,11 @@ function loadInitial(): OSState {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as OSState;
-      if (parsed && parsed.v === 4 && Array.isArray(parsed.projects)) return parsed;
+      if (parsed && parsed.v === 4 && Array.isArray(parsed.projects)) {
+        if (!parsed.providerConfig) parsed.providerConfig = structuredClone(DEFAULT_PROVIDER_CONFIG);
+        if (!parsed.recommendations) parsed.recommendations = [];
+        return parsed;
+      }
     }
   } catch {
     /* corrupted storage → reseed */
@@ -37,6 +43,9 @@ interface OSActions {
   retryTask: (id: string) => void;
   queueRecommendation: (id: string) => void;
   dismissRecommendation: (id: string) => void;
+  setModelRole: (role: ModelRole, modelId: string) => void;
+  setApiKey: (providerId: string, key: string) => void;
+  markProviderVerified: (providerId: string, ok: boolean) => void;
   reset: () => void;
 }
 
@@ -81,6 +90,9 @@ export function OSProvider({ children }: { children: ReactNode }) {
       retryTask: (id) => dispatch({ type: "RETRY_TASK", id, now: Date.now() }),
       queueRecommendation: (id) => dispatch({ type: "QUEUE_RECOMMENDATION", id, now: Date.now() }),
       dismissRecommendation: (id) => dispatch({ type: "DISMISS_RECOMMENDATION", id }),
+      setModelRole: (role, modelId) => dispatch({ type: "SET_MODEL_ROLE", role, modelId }),
+      setApiKey: (providerId, key) => dispatch({ type: "SET_API_KEY", providerId, key }),
+      markProviderVerified: (providerId, ok) => dispatch({ type: "MARK_PROVIDER_VERIFIED", providerId, ok }),
       reset: () => dispatch({ type: "RESET", now: Date.now() }),
     }),
     [],

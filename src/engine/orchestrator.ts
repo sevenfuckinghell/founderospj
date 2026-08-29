@@ -9,6 +9,7 @@ import {
   rng, uid, applyPriorities, runCouncil, reasoning, memory, makeLearnings, bumpRisk,
 } from "./engines";
 import { agentById, toolById, policyAllows, autoRecovery } from "../data/registry";
+import { DEFAULT_PROVIDER_CONFIG, resolveModel, costFor } from "../providers";
 
 /* ================================================================== */
 /* Action Engine — the application owns state; the "model" is a        */
@@ -28,6 +29,9 @@ export type Action =
   | { type: "RETRY_TASK"; id: string; now: number }
   | { type: "QUEUE_RECOMMENDATION"; id: string; now: number }
   | { type: "DISMISS_RECOMMENDATION"; id: string }
+  | { type: "SET_MODEL_ROLE"; role: "reasoning" | "fast" | "embedding"; modelId: string }
+  | { type: "SET_API_KEY"; providerId: string; key: string }
+  | { type: "MARK_PROVIDER_VERIFIED"; providerId: string; ok: boolean }
   | { type: "RESET"; now: number };
 
 const clone = (s: OSState): OSState => structuredClone(s);
@@ -57,7 +61,9 @@ function newRun(s: OSState, task: Task, now: number): AgentRun {
   return {
     id: uid("run"), projectId: task.projectId, taskId: task.id, agentId: agent.id,
     status: "running", startedAt: now, progress: 0,
-    tokens: 0, latencyMs: 0, model: agent.model, promptVersion: `${agent.id}.v${agent.version.slice(1)}`, cost: 0,
+    tokens: 0, latencyMs: 0,
+    model: resolveModel(s.providerConfig, task.agentId),
+    promptVersion: `${agent.id}.v${agent.version.slice(1)}`, cost: 0,
   };
 }
 
@@ -67,7 +73,7 @@ function finishRun(run: AgentRun, task: Task, now: number, failed: boolean): Age
   const latencyMs = 3600 + ((hash * 37) % 5600);
   return {
     ...run, status: failed ? "failed" : "completed", endedAt: now, progress: 100,
-    tokens, latencyMs, cost: Math.round(tokens * 8.5) / 1000,
+    tokens, latencyMs, cost: costFor(run.model, tokens),
     summary: failed ? undefined : `${agentById(task.agentId).name} delivered against acceptance: “${task.acceptance[0]}”`,
   };
 }
@@ -711,6 +717,7 @@ function seedState(now: number): OSState {
   const s: OSState = {
     v: 4, seed: 20260214, paused: false, autonomy: "ASSISTED",
     activeProjectId: null, startedAt: now - 3 * 3600_000,
+    providerConfig: structuredClone(DEFAULT_PROVIDER_CONFIG),
     projects: [], goals: [], tasks: [], runs: [], artifacts: [], risks: [],
     reviews: [], aggregates: [], approvals: [], toolExecs: [], events: [],
     memories: [], learnings: [], metrics: [], reasoning: [], chat: [],
@@ -900,6 +907,34 @@ export function reducer(state: OSState, action: Action): OSState {
     case "RETRY_TASK": {
       const s = clone(state);
       retryTask(s, action.id, action.now);
+      return s;
+    }
+    case "SET_MODEL_ROLE": {
+      const s = clone(state);
+      s.providerConfig.roles[action.role] = action.modelId;
+      const p = s.projects.find((pp) => pp.id === s.activeProjectId);
+      if (p) emit(s, p.id, "MODEL_CHANGED", `${action.role} role → ${action.modelId}`);
+      return s;
+    }
+    case "SET_API_KEY": {
+      const s = clone(state);
+      const next = { ...s.providerConfig.keys, [action.providerId]: action.key };
+      if (!action.key) delete next[action.providerId];
+      s.providerConfig = {
+        ...s.providerConfig,
+        keys: next,
+        verified: { ...s.providerConfig.verified, [action.providerId]: false },
+      };
+      const p = s.projects.find((pp) => pp.id === s.activeProjectId);
+      if (p) emit(s, p.id, "PROVIDER_KEY_UPDATED", `${action.providerId} key ${action.key ? "stored locally (masked)" : "removed"}`);
+      return s;
+    }
+    case "MARK_PROVIDER_VERIFIED": {
+      const s = clone(state);
+      s.providerConfig = {
+        ...s.providerConfig,
+        verified: { ...s.providerConfig.verified, [action.providerId]: action.ok },
+      };
       return s;
     }
     case "QUEUE_RECOMMENDATION": {
