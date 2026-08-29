@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { OSProvider } from "./store";
+import { useEffect, useRef, useState } from "react";
+import { OSProvider, useOS } from "./store";
 import { Shell } from "./components/Shell";
 import type { ViewId } from "./components/Shell";
 import { Dashboard } from "./components/Dashboard";
@@ -10,10 +10,25 @@ import { ApprovalsView, ReviewsView, EventsView, SettingsView } from "./componen
 import { AIBrain } from "./components/AIBrain";
 import { InsightsView } from "./components/Insights";
 import { ChatPanel } from "./components/ChatPanel";
+import { ProjectResultWindow } from "./components/ProjectResult";
 
 function Console() {
+  const s = useOS();
   const [view, setView] = useState<ViewId>("dashboard");
   const [chatOpen, setChatOpen] = useState(false);
+  const [resultId, setResultId] = useState<string | null>(null);
+  const prevPhases = useRef<Record<string, string>>({});
+
+  /* auto-open the result dossier the moment a project completes */
+  useEffect(() => {
+    for (const p of s.projects) {
+      const prev = prevPhases.current[p.id];
+      if (prev && prev !== "COMPLETED" && p.phase === "COMPLETED") {
+        setResultId(p.id);
+      }
+      prevPhases.current[p.id] = p.phase;
+    }
+  }, [s.projects]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -29,10 +44,10 @@ function Console() {
 
   return (
     <Shell view={view} setView={setView} onToggleChat={() => setChatOpen((o) => !o)} chatOpen={chatOpen}>
-      {view === "dashboard" && <Dashboard goto={setView} />}
+      {view === "dashboard" && <Dashboard goto={setView} openResult={setResultId} />}
       {view === "command" && <CommandCenter goto={setView} />}
       {view === "goals" && <GoalIntake goto={setView} />}
-      {view === "projects" && <ProjectsView />}
+      {view === "projects" && <ProjectsView onResult={setResultId} />}
       {view === "tasks" && <TasksView />}
       {view === "agents" && <AgentsView />}
       {view === "brain" && <AIBrain />}
@@ -43,6 +58,7 @@ function Console() {
       {view === "events" && <EventsView />}
       {view === "settings" && <SettingsView />}
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
+      {resultId && <ProjectResultWindow projectId={resultId} onClose={() => setResultId(null)} onSwitch={setResultId} />}
     </Shell>
   );
 }

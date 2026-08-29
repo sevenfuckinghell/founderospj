@@ -9,13 +9,13 @@ import type { Project, Task } from "../types";
 
 /* ================= PROJECTS ================= */
 
-export function ProjectsView() {
+export function ProjectsView({ onResult }: { onResult?: (id: string) => void }) {
   const s = useOS();
   const a = useActions();
   const [detailId, setDetailId] = useState<string | null>(null);
   const detail = s.projects.find((p) => p.id === detailId);
 
-  if (detail) return <ProjectDetail project={detail} onBack={() => setDetailId(null)} onOpen={(id) => a.setActive(id)} />;
+  if (detail) return <ProjectDetail project={detail} onBack={() => setDetailId(null)} onOpen={(id) => a.setActive(id)} onResult={onResult} />;
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -47,6 +47,17 @@ export function ProjectsView() {
                 <div><div className="font-display text-[16px] font-bold">{s.learnings.filter((l) => l.projectId === p.id).length}</div><div className="font-mono text-[8.5px] uppercase tracking-[0.12em] text-mut">lessons</div></div>
               </div>
             </button>
+            {onResult && (
+              <div className="mt-3 border-t border-line pt-3">
+                <button
+                  className={cx("btn w-full py-1.5 text-[11.5px]", p.phase === "COMPLETED" ? "btn-mint" : "")}
+                  onClick={(e) => { e.stopPropagation(); onResult(p.id); }}
+                >
+                  <Icon name="box" size={13} />
+                  {p.phase === "COMPLETED" ? "view result dossier" : "view built so far"}
+                </button>
+              </div>
+            )}
           </Panel>
         );
       })}
@@ -54,7 +65,7 @@ export function ProjectsView() {
   );
 }
 
-function ProjectDetail({ project: p, onBack, onOpen }: { project: Project; onBack: () => void; onOpen: (id: string) => void }) {
+function ProjectDetail({ project: p, onBack, onOpen, onResult }: { project: Project; onBack: () => void; onOpen: (id: string) => void; onResult?: (id: string) => void }) {
   const s = useOS();
   const now = useNow(1000);
   const [tab, setTab] = useState<"overview" | "roadmap" | "risks">("overview");
@@ -77,6 +88,11 @@ function ProjectDetail({ project: p, onBack, onOpen }: { project: Project; onBac
           </div>
           <div className="flex items-center gap-2">
             <PhaseChip phase={p.phase} />
+            {onResult && (
+              <button className={cx("btn", p.phase === "COMPLETED" && "btn-mint")} onClick={() => onResult(p.id)}>
+                <Icon name="box" size={13} /> {p.phase === "COMPLETED" ? "result dossier" : "built so far"}
+              </button>
+            )}
             {s.activeProjectId !== p.id && <button className="btn" onClick={() => onOpen(p.id)}>make active</button>}
           </div>
         </div>

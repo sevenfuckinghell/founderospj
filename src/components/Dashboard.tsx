@@ -5,7 +5,7 @@ import { agentById } from "../data/registry";
 import { pendingApprovals, openRisks, projectProgress, severityTone, truncate, fmtAgo } from "../engine/engines";
 import type { ViewId } from "./Shell";
 
-export function Dashboard({ goto }: { goto: (v: ViewId) => void }) {
+export function Dashboard({ goto, openResult }: { goto: (v: ViewId) => void; openResult: (id: string) => void }) {
   const s = useOS();
   const a = useActions();
   const p = useActiveProject();
@@ -70,6 +70,15 @@ export function Dashboard({ goto }: { goto: (v: ViewId) => void }) {
                 />
               </svg>
             </div>
+            {p && (
+              <button
+                className={p.phase === "COMPLETED" ? "btn btn-mint" : "btn"}
+                onClick={() => openResult(p.id)}
+                title="Open the project result dossier in its own window"
+              >
+                <Icon name="box" size={13} /> {p.phase === "COMPLETED" ? "view result" : "view built so far"}
+              </button>
+            )}
             <button className="btn btn-mint" onClick={() => goto("goals")}>
               <Icon name="plus" size={13} /> new goal
             </button>
