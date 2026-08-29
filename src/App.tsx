@@ -12,6 +12,7 @@ import { InsightsView } from "./components/Insights";
 import { ChatPanel } from "./components/ChatPanel";
 import { ProjectResultWindow } from "./components/ProjectResult";
 import { ToastHost } from "./components/Toasts";
+import { BootScreen } from "./components/Boot";
 
 function Console() {
   const s = useOS();
@@ -42,6 +43,8 @@ function Console() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  if (!s.workspace.onboarded) return <BootScreen />;
 
   return (
     <Shell view={view} setView={setView} onToggleChat={() => setChatOpen((o) => !o)} chatOpen={chatOpen}>
