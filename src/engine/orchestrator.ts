@@ -757,7 +757,7 @@ function seedTenancy(s: OSState, now: number) {
 
 function seedState(now: number): OSState {
   const s: OSState = {
-    v: 5, seed: 20260214, paused: false, onboarded: true, autonomy: "ASSISTED",
+    v: 5, seed: 20260214, paused: false, onboarded: false, autonomy: "ASSISTED",
     currentMemberId: null, activeOrganizationId: null, activeWorkspaceId: null,
     activeProjectId: null, startedAt: now - 3 * 3600_000,
     providerConfig: structuredClone(DEFAULT_PROVIDER_CONFIG),

@@ -8,6 +8,21 @@ import type { ModelRole } from "./providers";
 
 const LS_KEY = "founder-os-state-v5";
 
+/* every collection the UI maps over — a missing one means a blank screen */
+const REQUIRED_ARRAYS = [
+  "organizations", "members", "teams", "workspaces", "integrations", "billings",
+  "projects", "goals", "tasks", "runs", "artifacts", "risks", "reviews",
+  "aggregates", "approvals", "toolExecs", "events", "memories", "learnings",
+  "metrics", "reasoning", "chat", "recommendations",
+] as const;
+
+function isValidState(parsed: unknown): parsed is OSState {
+  if (!parsed || typeof parsed !== "object") return false;
+  const p = parsed as OSState;
+  if (p.v !== 5 || !p.providerConfig || typeof p.onboarded !== "boolean") return false;
+  return REQUIRED_ARRAYS.every((k) => Array.isArray(p[k as keyof OSState]));
+}
+
 function loadInitial(): OSState {
   const now = Date.now();
   try {
@@ -21,16 +36,28 @@ function loadInitial(): OSState {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as OSState;
-      if (parsed && parsed.v === 5 && Array.isArray(parsed.projects) && Array.isArray(parsed.organizations)) {
-        if (!parsed.providerConfig) parsed.providerConfig = structuredClone(DEFAULT_PROVIDER_CONFIG);
-        if (!parsed.recommendations) parsed.recommendations = [];
-        return parsed;
-      }
+      if (isValidState(parsed)) return parsed;
+      /* shape drifted between builds → wipe and reseed rather than crash */
+      localStorage.removeItem(LS_KEY);
     }
   } catch {
     /* corrupted storage → reseed */
   }
-  return createInitialState(now);
+  try {
+    return createInitialState(now);
+  } catch {
+    /* absolute last resort — never render a blank screen */
+    return {
+      v: 5, seed: 42, paused: false, onboarded: false, autonomy: "ASSISTED",
+      currentMemberId: null, activeOrganizationId: null, activeWorkspaceId: null,
+      activeProjectId: null, startedAt: now,
+      providerConfig: structuredClone(DEFAULT_PROVIDER_CONFIG),
+      organizations: [], members: [], teams: [], workspaces: [], integrations: [], billings: [],
+      projects: [], goals: [], tasks: [], runs: [], artifacts: [], risks: [],
+      reviews: [], aggregates: [], approvals: [], toolExecs: [], events: [],
+      memories: [], learnings: [], metrics: [], reasoning: [], chat: [], recommendations: [],
+    };
+  }
 }
 
 interface OSActions {

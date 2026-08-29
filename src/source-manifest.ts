@@ -26,6 +26,7 @@ import enginesTs from "./engine/engines.ts?raw";
 import plannerTs from "./engine/planner.ts?raw";
 
 import registryTs from "./data/registry.ts?raw";
+import backlogTs from "./data/backlog.ts?raw";
 
 import uiTsx from "./components/ui.tsx?raw";
 import shellTsx from "./components/Shell.tsx?raw";
@@ -45,6 +46,7 @@ import bootTsx from "./components/Boot.tsx?raw";
 import architectureTsx from "./components/Architecture.tsx?raw";
 import sourcePanelTsx from "./components/SourcePanel.tsx?raw";
 import topologyTsx from "./components/Topology.tsx?raw";
+import backlogTsx from "./components/Backlog.tsx?raw";
 import tenancyTsx from "./components/Tenancy.tsx?raw";
 
 import serverMain from "../server/main.py?raw";
@@ -80,6 +82,7 @@ export const SOURCE_FILES: SourceFile[] = [
   { path: "src/engine/planner.ts", content: plannerTs },
 
   { path: "src/data/registry.ts", content: registryTs },
+  { path: "src/data/backlog.ts", content: backlogTs },
 
   { path: "src/components/ui.tsx", content: uiTsx },
   { path: "src/components/Shell.tsx", content: shellTsx },
@@ -100,6 +103,7 @@ export const SOURCE_FILES: SourceFile[] = [
   { path: "src/components/SourcePanel.tsx", content: sourcePanelTsx },
   { path: "src/components/Topology.tsx", content: topologyTsx },
   { path: "src/components/Tenancy.tsx", content: tenancyTsx },
+  { path: "src/components/Backlog.tsx", content: backlogTsx },
   { path: "server/main.py", content: serverMain },
   { path: "server/worker.py", content: serverWorker },
   { path: "server/schema.sql", content: serverSchema },
