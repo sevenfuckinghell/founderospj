@@ -757,7 +757,7 @@ function seedTenancy(s: OSState, now: number) {
 
 function seedState(now: number): OSState {
   const s: OSState = {
-    v: 5, seed: 20260214, paused: false, onboarded: false, autonomy: "ASSISTED",
+    v: 6, seed: 20260214, paused: false, onboarded: false, autonomy: "ASSISTED",
     currentMemberId: null, activeOrganizationId: null, activeWorkspaceId: null,
     activeProjectId: null, startedAt: now - 3 * 3600_000,
     providerConfig: structuredClone(DEFAULT_PROVIDER_CONFIG),
@@ -1049,7 +1049,7 @@ export function reducer(state: OSState, action: Action): OSState {
 
 function emptyState(now: number): OSState {
   const s: OSState = {
-    v: 5, seed: (now % 2147483647) || 42, paused: false, onboarded: false, autonomy: "ASSISTED",
+    v: 6, seed: (now % 2147483647) || 42, paused: false, onboarded: false, autonomy: "ASSISTED",
     currentMemberId: null, activeOrganizationId: null, activeWorkspaceId: null,
     activeProjectId: null, startedAt: now,
     providerConfig: structuredClone(DEFAULT_PROVIDER_CONFIG),

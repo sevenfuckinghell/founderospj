@@ -193,10 +193,10 @@ export function Shell({ view, setView, onToggleChat, chatOpen, children }: {
             >
               <span className={cx(
                 "h-1.5 w-1.5 rounded-full",
-                Object.values(s.providerConfig.verified).some(Boolean) ? "bg-mint pulse-dot"
-                : s.providerConfig.roles.reasoning.startsWith("demo-") ? "bg-amber pulse-dot-amber" : "bg-cy",
+                Object.values(s.providerConfig.verified ?? {}).some(Boolean) ? "bg-mint pulse-dot"
+                : (s.providerConfig.roles?.reasoning ?? "demo-reason-4").startsWith("demo-") ? "bg-amber pulse-dot-amber" : "bg-cy",
               )} />
-              <span className="font-mono text-[10.5px] text-sub">{modelById(s.providerConfig.roles.reasoning).name}</span>
+              <span className="font-mono text-[10.5px] text-sub">{modelById(s.providerConfig.roles?.reasoning ?? "demo-reason-4").name}</span>
               <Icon name="gear" size={11} className="text-mut" />
             </button>
             <span className="hidden font-mono text-[11px] text-mut md:block">

@@ -6,7 +6,8 @@ import type { Action } from "./engine/orchestrator";
 import { DEFAULT_PROVIDER_CONFIG } from "./providers";
 import type { ModelRole } from "./providers";
 
-const LS_KEY = "founder-os-state-v5";
+const LS_KEY = "founder-os-state-v6";
+const LEGACY_KEYS = ["founder-os-state-v3", "founder-os-state-v4", "founder-os-state-v5"];
 
 /* every collection the UI maps over — a missing one means a blank screen */
 const REQUIRED_ARRAYS = [
@@ -19,16 +20,26 @@ const REQUIRED_ARRAYS = [
 function isValidState(parsed: unknown): parsed is OSState {
   if (!parsed || typeof parsed !== "object") return false;
   const p = parsed as OSState;
-  if (p.v !== 5 || !p.providerConfig || typeof p.onboarded !== "boolean") return false;
+  if (p.v !== 6 || !p.providerConfig || typeof p.onboarded !== "boolean") return false;
   return REQUIRED_ARRAYS.every((k) => Array.isArray(p[k as keyof OSState]));
+}
+
+/* heal provider config shapes written by older builds — a missing
+   sub-object (keys / verified / roles) would blank the whole console */
+function normalizeProviderConfig(p: OSState) {
+  const d = DEFAULT_PROVIDER_CONFIG;
+  p.providerConfig = {
+    roles: { ...d.roles, ...(p.providerConfig.roles ?? {}) },
+    keys: { ...(p.providerConfig.keys ?? {}) },
+    verified: { ...(p.providerConfig.verified ?? {}) },
+  };
 }
 
 function loadInitial(): OSState {
   const now = Date.now();
   try {
-    /* drop legacy single-workspace schemas — tenancy hierarchy is v5+ */
-    localStorage.removeItem("founder-os-state-v3");
-    localStorage.removeItem("founder-os-state-v4");
+    /* drop every legacy schema — a drifted snapshot must never render */
+    for (const k of LEGACY_KEYS) localStorage.removeItem(k);
   } catch {
     /* non-fatal */
   }
@@ -36,7 +47,10 @@ function loadInitial(): OSState {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as OSState;
-      if (isValidState(parsed)) return parsed;
+      if (isValidState(parsed)) {
+        normalizeProviderConfig(parsed);
+        return parsed;
+      }
       /* shape drifted between builds → wipe and reseed rather than crash */
       localStorage.removeItem(LS_KEY);
     }
@@ -48,7 +62,7 @@ function loadInitial(): OSState {
   } catch {
     /* absolute last resort — never render a blank screen */
     return {
-      v: 5, seed: 42, paused: false, onboarded: false, autonomy: "ASSISTED",
+      v: 6, seed: 42, paused: false, onboarded: false, autonomy: "ASSISTED",
       currentMemberId: null, activeOrganizationId: null, activeWorkspaceId: null,
       activeProjectId: null, startedAt: now,
       providerConfig: structuredClone(DEFAULT_PROVIDER_CONFIG),
