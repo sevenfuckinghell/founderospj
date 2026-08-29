@@ -23,18 +23,70 @@ CREATE TABLE org_members (
   organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
   user_id         UUID REFERENCES users(id) ON DELETE CASCADE,
   role            TEXT NOT NULL CHECK (role IN ('OWNER','ADMIN','MEMBER','VIEWER')),
+  status          TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','INVITED')),
+  joined_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (organization_id, user_id)
 );
+
+CREATE TABLE teams (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  name            TEXT NOT NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_teams_org ON teams (organization_id);
+
+CREATE TABLE team_members (
+  team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (team_id, user_id)
+);
+
+-- Organization → Workspaces → Projects hierarchy
+CREATE TABLE workspaces (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  name            TEXT NOT NULL,
+  description     TEXT NOT NULL DEFAULT '',
+  accent          TEXT NOT NULL DEFAULT 'mint',
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_workspaces_org ON workspaces (organization_id);
 
 CREATE TABLE projects (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID REFERENCES organizations(id),
+  workspace_id    UUID REFERENCES workspaces(id) ON DELETE CASCADE,
   name            TEXT NOT NULL,
   phase           TEXT NOT NULL DEFAULT 'PLANNING',
   plan_version    INT  NOT NULL DEFAULT 1,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_projects_org ON projects (organization_id, created_at DESC);
+CREATE INDEX idx_projects_ws ON projects (workspace_id, created_at DESC);
+
+-- Workspace-scoped integrations
+CREATE TABLE integrations (
+  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
+  provider     TEXT NOT NULL,
+  status       TEXT NOT NULL DEFAULT 'NOT_CONNECTED',
+  scopes       JSONB NOT NULL DEFAULT '[]',
+  connected_at TIMESTAMPTZ
+);
+CREATE INDEX idx_integrations_ws ON integrations (workspace_id);
+
+-- Organization-level billing
+CREATE TABLE billing (
+  id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id      UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  plan                 TEXT NOT NULL DEFAULT 'Scale',
+  seats_total          INT  NOT NULL DEFAULT 10,
+  monthly_token_budget BIGINT NOT NULL DEFAULT 20000000,
+  renewal              TEXT,
+  card_last4           TEXT
+);
+CREATE INDEX idx_billing_org ON billing (organization_id);
 
 CREATE TABLE goals (
   id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

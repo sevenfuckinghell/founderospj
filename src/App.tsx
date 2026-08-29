@@ -44,7 +44,7 @@ function Console() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  if (!s.workspace.onboarded) return <BootScreen />;
+  if (!s.onboarded) return <BootScreen />;
 
   return (
     <Shell view={view} setView={setView} onToggleChat={() => setChatOpen((o) => !o)} chatOpen={chatOpen}>

@@ -6,12 +6,14 @@ import type { Action } from "./engine/orchestrator";
 import { DEFAULT_PROVIDER_CONFIG } from "./providers";
 import type { ModelRole } from "./providers";
 
-const LS_KEY = "founder-os-state-v4";
+const LS_KEY = "founder-os-state-v5";
 
 function loadInitial(): OSState {
   const now = Date.now();
   try {
+    /* drop legacy single-workspace schemas — tenancy hierarchy is v5+ */
     localStorage.removeItem("founder-os-state-v3");
+    localStorage.removeItem("founder-os-state-v4");
   } catch {
     /* non-fatal */
   }
@@ -19,12 +21,9 @@ function loadInitial(): OSState {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as OSState;
-      if (parsed && parsed.v === 4 && Array.isArray(parsed.projects)) {
+      if (parsed && parsed.v === 5 && Array.isArray(parsed.projects) && Array.isArray(parsed.organizations)) {
         if (!parsed.providerConfig) parsed.providerConfig = structuredClone(DEFAULT_PROVIDER_CONFIG);
         if (!parsed.recommendations) parsed.recommendations = [];
-        if (!parsed.workspace) {
-          parsed.workspace = { name: "Founder Workspace", founder: "Founder", onboarded: true, createdAt: parsed.startedAt };
-        }
         return parsed;
       }
     }
@@ -44,6 +43,7 @@ interface OSActions {
   skipPlanning: () => void;
   chat: (text: string) => void;
   setActive: (id: string) => void;
+  setWorkspace: (id: string) => void;
   retryTask: (id: string) => void;
   queueRecommendation: (id: string) => void;
   dismissRecommendation: (id: string) => void;
@@ -92,6 +92,7 @@ export function OSProvider({ children }: { children: ReactNode }) {
       skipPlanning: () => dispatch({ type: "SKIP_PLANNING", now: Date.now() }),
       chat: (text) => dispatch({ type: "CHAT", text, now: Date.now() }),
       setActive: (id) => dispatch({ type: "SET_ACTIVE", id }),
+      setWorkspace: (id) => dispatch({ type: "SET_WORKSPACE", id }),
       retryTask: (id) => dispatch({ type: "RETRY_TASK", id, now: Date.now() }),
       queueRecommendation: (id) => dispatch({ type: "QUEUE_RECOMMENDATION", id, now: Date.now() }),
       dismissRecommendation: (id) => dispatch({ type: "DISMISS_RECOMMENDATION", id }),
@@ -122,7 +123,29 @@ export function useActions(): OSActions {
   return a;
 }
 
+export function useOrganization() {
+  const s = useOS();
+  return s.organizations.find((o) => o.id === s.activeOrganizationId) ?? s.organizations[0] ?? null;
+}
+
+export function useActiveWorkspace() {
+  const s = useOS();
+  return s.workspaces.find((w) => w.id === s.activeWorkspaceId) ?? s.workspaces[0] ?? null;
+}
+
+/* projects scoped to the active workspace (multi-tenant isolation) */
+export function useWorkspaceProjects() {
+  const s = useOS();
+  const wsId = s.activeWorkspaceId;
+  return s.projects.filter((p) => p.workspaceId === wsId);
+}
+
 export function useActiveProject() {
   const s = useOS();
-  return s.projects.find((p) => p.id === s.activeProjectId) ?? s.projects[s.projects.length - 1] ?? null;
+  const wsProjects = s.projects.filter((p) => p.workspaceId === s.activeWorkspaceId);
+  return (
+    wsProjects.find((p) => p.id === s.activeProjectId) ??
+    wsProjects[wsProjects.length - 1] ??
+    null
+  );
 }

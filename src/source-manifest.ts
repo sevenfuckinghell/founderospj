@@ -45,6 +45,7 @@ import bootTsx from "./components/Boot.tsx?raw";
 import architectureTsx from "./components/Architecture.tsx?raw";
 import sourcePanelTsx from "./components/SourcePanel.tsx?raw";
 import topologyTsx from "./components/Topology.tsx?raw";
+import tenancyTsx from "./components/Tenancy.tsx?raw";
 
 import serverMain from "../server/main.py?raw";
 import serverWorker from "../server/worker.py?raw";
@@ -98,6 +99,7 @@ export const SOURCE_FILES: SourceFile[] = [
   { path: "src/components/Architecture.tsx", content: architectureTsx },
   { path: "src/components/SourcePanel.tsx", content: sourcePanelTsx },
   { path: "src/components/Topology.tsx", content: topologyTsx },
+  { path: "src/components/Tenancy.tsx", content: tenancyTsx },
   { path: "server/main.py", content: serverMain },
   { path: "server/worker.py", content: serverWorker },
   { path: "server/schema.sql", content: serverSchema },
