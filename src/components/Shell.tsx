@@ -7,7 +7,7 @@ import { modelById } from "../providers";
 
 export type ViewId =
   | "dashboard" | "command" | "goals" | "projects" | "tasks" | "agents"
-  | "brain" | "reviews" | "approvals" | "artifacts" | "insights" | "events" | "settings";
+  | "brain" | "reviews" | "approvals" | "artifacts" | "insights" | "backlog" | "events" | "settings";
 
 const NAV: { section: string; items: { id: ViewId; label: string; icon: string }[] }[] = [
   {
@@ -45,6 +45,7 @@ const NAV: { section: string; items: { id: ViewId; label: string; icon: string }
     section: "Learn",
     items: [
       { id: "insights", label: "Insights", icon: "chart" },
+      { id: "backlog", label: "Backlog", icon: "layers" },
       { id: "settings", label: "Settings", icon: "gear" },
     ],
   },
@@ -62,6 +63,7 @@ const TITLES: Record<ViewId, string> = {
   approvals: "Approvals & Gates",
   artifacts: "Artifact Store",
   insights: "Insight & Learning",
+  backlog: "Production Backlog",
   events: "Events & Audit Log",
   settings: "System Settings",
 };

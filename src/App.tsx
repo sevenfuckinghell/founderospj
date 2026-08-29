@@ -9,6 +9,7 @@ import { ProjectsView, TasksView, AgentsView, ArtifactsView } from "./components
 import { ApprovalsView, ReviewsView, EventsView, SettingsView } from "./components/Governance";
 import { AIBrain } from "./components/AIBrain";
 import { InsightsView } from "./components/Insights";
+import { BacklogView } from "./components/Backlog";
 import { ChatPanel } from "./components/ChatPanel";
 import { ProjectResultWindow } from "./components/ProjectResult";
 import { ToastHost } from "./components/Toasts";
@@ -59,6 +60,7 @@ function Console() {
       {view === "approvals" && <ApprovalsView />}
       {view === "artifacts" && <ArtifactsView />}
       {view === "insights" && <InsightsView />}
+      {view === "backlog" && <BacklogView />}
       {view === "events" && <EventsView />}
       {view === "settings" && <SettingsView />}
       <ChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
