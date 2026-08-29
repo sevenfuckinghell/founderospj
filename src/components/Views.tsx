@@ -18,9 +18,30 @@ export function ProjectsView({ onResult }: { onResult?: (id: string) => void }) 
 
   if (detail) return <ProjectDetail project={detail} onBack={() => setDetailId(null)} onOpen={(id) => a.setActive(id)} onResult={onResult} />;
 
+  const wsProjects = s.projects.filter((p) => p.workspaceId === s.activeWorkspaceId);
+  const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
+
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {s.projects.map((p, i) => {
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-mut">
+          workspace <span className="text-mint">{ws?.name ?? "—"}</span> · {wsProjects.length} project{wsProjects.length === 1 ? "" : "s"}
+        </p>
+        <p className="hidden font-mono text-[9.5px] uppercase tracking-[0.1em] text-mut sm:block">scoped by org → workspace isolation</p>
+      </div>
+
+      {wsProjects.length === 0 && (
+        <div className="rounded-lg border border-dashed border-line2 bg-ink-900/40 px-6 py-10 text-center">
+          <p className="font-display text-[15px] font-bold text-sub">No projects in this workspace yet</p>
+          <p className="mx-auto mt-1 max-w-[380px] text-[12px] leading-relaxed text-mut">
+            Projects are isolated per workspace. Switch workspace in the header, or create a goal and the
+            planner will file the new project under <span className="text-mint">{ws?.name ?? "this workspace"}</span>.
+          </p>
+        </div>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2">
+      {wsProjects.map((p, i) => {
         const tasks = s.tasks.filter((t) => t.projectId === p.id);
         const done = tasks.filter((t) => t.status === "COMPLETED").length;
         const risks = s.risks.filter((r) => r.projectId === p.id && r.status !== "MITIGATED").length;
@@ -62,6 +83,7 @@ export function ProjectsView({ onResult }: { onResult?: (id: string) => void }) 
           </Panel>
         );
       })}
+      </div>
     </div>
   );
 }

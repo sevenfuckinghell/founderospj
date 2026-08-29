@@ -26,6 +26,7 @@ import enginesTs from "./engine/engines.ts?raw";
 import plannerTs from "./engine/planner.ts?raw";
 
 import registryTs from "./data/registry.ts?raw";
+import backlogTs from "./data/backlog.ts?raw";
 
 import uiTsx from "./components/ui.tsx?raw";
 import shellTsx from "./components/Shell.tsx?raw";
@@ -41,6 +42,25 @@ import chatPanelTsx from "./components/ChatPanel.tsx?raw";
 import projectResultTsx from "./components/ProjectResult.tsx?raw";
 import providerPanelTsx from "./components/ProviderPanel.tsx?raw";
 import toastsTsx from "./components/Toasts.tsx?raw";
+import bootTsx from "./components/Boot.tsx?raw";
+import architectureTsx from "./components/Architecture.tsx?raw";
+import sourcePanelTsx from "./components/SourcePanel.tsx?raw";
+import topologyTsx from "./components/Topology.tsx?raw";
+import backlogTsx from "./components/Backlog.tsx?raw";
+import tenancyTsx from "./components/Tenancy.tsx?raw";
+
+import serverMain from "../server/main.py?raw";
+import serverWorker from "../server/worker.py?raw";
+import serverSchema from "../server/schema.sql?raw";
+import dockerCompose from "../docker-compose.yml?raw";
+
+import desktopMain from "../desktop/main.cjs?raw";
+import desktopPreload from "../desktop/preload.cjs?raw";
+import desktopPkg from "../desktop/package.json?raw";
+import runLocalBat from "../scripts/run-local.bat?raw";
+import buildDesktopBat from "../scripts/build-desktop.bat?raw";
+import readmeWindows from "../README-WINDOWS.md?raw";
+import webManifest from "../public/manifest.webmanifest?raw";
 
 export interface SourceFile {
   path: string;
@@ -70,6 +90,7 @@ export const SOURCE_FILES: SourceFile[] = [
   { path: "src/engine/planner.ts", content: plannerTs },
 
   { path: "src/data/registry.ts", content: registryTs },
+  { path: "src/data/backlog.ts", content: backlogTs },
 
   { path: "src/components/ui.tsx", content: uiTsx },
   { path: "src/components/Shell.tsx", content: shellTsx },
@@ -85,6 +106,16 @@ export const SOURCE_FILES: SourceFile[] = [
   { path: "src/components/ProjectResult.tsx", content: projectResultTsx },
   { path: "src/components/ProviderPanel.tsx", content: providerPanelTsx },
   { path: "src/components/Toasts.tsx", content: toastsTsx },
+  { path: "src/components/Boot.tsx", content: bootTsx },
+  { path: "src/components/Architecture.tsx", content: architectureTsx },
+  { path: "src/components/SourcePanel.tsx", content: sourcePanelTsx },
+  { path: "src/components/Topology.tsx", content: topologyTsx },
+  { path: "src/components/Tenancy.tsx", content: tenancyTsx },
+  { path: "src/components/Backlog.tsx", content: backlogTsx },
+  { path: "server/main.py", content: serverMain },
+  { path: "server/worker.py", content: serverWorker },
+  { path: "server/schema.sql", content: serverSchema },
+  { path: "docker-compose.yml", content: dockerCompose },
 ];
 
 export const byteSize = (s: string): number => new TextEncoder().encode(s).length;

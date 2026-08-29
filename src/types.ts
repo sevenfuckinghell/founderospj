@@ -49,6 +49,8 @@ export interface PipelineStage {
 
 export interface Project {
   id: string;
+  organizationId: string;
+  workspaceId: string;
   name: string;
   demo: boolean;
   goalId: string;
@@ -262,11 +264,69 @@ export interface ChatMsg {
   ts: number;
 }
 
-export interface Workspace {
-  name: string;
+export interface Onboarding {
+  orgName: string;
   founder: string;
   onboarded: boolean;
   createdAt: number;
+}
+
+/* ---------------- multi-tenant hierarchy ----------------
+   Organization
+    ├── Members · Teams · Billing
+    └── Workspaces
+         ├── Projects → Goals/Tasks/Runs/Artifacts/Risks/Approvals/Memories
+         └── Integrations                                   */
+
+export type OrgRole = "OWNER" | "ADMIN" | "MEMBER" | "VIEWER";
+
+export interface Organization {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
+export interface Member {
+  id: string;
+  organizationId: string;
+  name: string;
+  email: string;
+  role: OrgRole;
+  status: "ACTIVE" | "INVITED";
+  joinedAt: number;
+}
+
+export interface Team {
+  id: string;
+  organizationId: string;
+  name: string;
+  memberIds: string[];
+}
+
+export interface Workspace {
+  id: string;
+  organizationId: string;
+  name: string;
+  description: string;
+  accent: "mint" | "cy" | "amber";
+  createdAt: number;
+}
+
+export interface IntegrationConfig {
+  id: string;
+  workspaceId: string;
+  provider: string;
+  status: "CONNECTED" | "NOT_CONNECTED";
+  scopes: string[];
+  connectedAt?: number;
+}
+
+export interface Billing {
+  plan: string;
+  seatsTotal: number;
+  monthlyTokenBudget: number;
+  renewal: string;
+  cardLast4: string;
 }
 
 export type RecommendationSource = "COUNCIL" | "LEARNING" | "MEASURE";
@@ -283,15 +343,37 @@ export interface Recommendation {
   ts: number;
 }
 
+/* ------------------------------------------------------------------ */
+/* Multi-tenant hierarchy:                                             */
+/*   Organization                                                      */
+/*    ├─ Members · Teams · Billing                                     */
+/*    └─ Workspaces                                                    */
+/*        ├─ Projects → Goals/Tasks/Runs/Artifacts/Risks/Approvals/    */
+/*        │             Memories                                       */
+/*        └─ Integrations                                              */
+/* ------------------------------------------------------------------ */
+
 export interface OSState {
   v: number;
   seed: number;
   paused: boolean;
+  onboarded: boolean;
   autonomy: Autonomy;
-  workspace: Workspace;
+  /* current identity / navigation */
+  currentMemberId: string | null;
+  activeOrganizationId: string | null;
+  activeWorkspaceId: string | null;
   activeProjectId: string | null;
   startedAt: number;
   providerConfig: ProviderConfig;
+  /* tenancy */
+  organizations: Organization[];
+  members: Member[];
+  teams: Team[];
+  workspaces: Workspace[];
+  integrations: IntegrationConfig[];
+  billings: Billing[];
+  /* project-scoped collections (Project carries workspaceId) */
   projects: Project[];
   goals: Goal[];
   tasks: Task[];

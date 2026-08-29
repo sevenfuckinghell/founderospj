@@ -6,12 +6,40 @@ import type { Action } from "./engine/orchestrator";
 import { DEFAULT_PROVIDER_CONFIG } from "./providers";
 import type { ModelRole } from "./providers";
 
-const LS_KEY = "founder-os-state-v4";
+const LS_KEY = "founder-os-state-v6";
+const LEGACY_KEYS = ["founder-os-state-v3", "founder-os-state-v4", "founder-os-state-v5"];
+
+/* every collection the UI maps over — a missing one means a blank screen */
+const REQUIRED_ARRAYS = [
+  "organizations", "members", "teams", "workspaces", "integrations", "billings",
+  "projects", "goals", "tasks", "runs", "artifacts", "risks", "reviews",
+  "aggregates", "approvals", "toolExecs", "events", "memories", "learnings",
+  "metrics", "reasoning", "chat", "recommendations",
+] as const;
+
+function isValidState(parsed: unknown): parsed is OSState {
+  if (!parsed || typeof parsed !== "object") return false;
+  const p = parsed as OSState;
+  if (p.v !== 6 || !p.providerConfig || typeof p.onboarded !== "boolean") return false;
+  return REQUIRED_ARRAYS.every((k) => Array.isArray(p[k as keyof OSState]));
+}
+
+/* heal provider config shapes written by older builds — a missing
+   sub-object (keys / verified / roles) would blank the whole console */
+function normalizeProviderConfig(p: OSState) {
+  const d = DEFAULT_PROVIDER_CONFIG;
+  p.providerConfig = {
+    roles: { ...d.roles, ...(p.providerConfig.roles ?? {}) },
+    keys: { ...(p.providerConfig.keys ?? {}) },
+    verified: { ...(p.providerConfig.verified ?? {}) },
+  };
+}
 
 function loadInitial(): OSState {
   const now = Date.now();
   try {
-    localStorage.removeItem("founder-os-state-v3");
+    /* drop every legacy schema — a drifted snapshot must never render */
+    for (const k of LEGACY_KEYS) localStorage.removeItem(k);
   } catch {
     /* non-fatal */
   }
@@ -19,19 +47,31 @@ function loadInitial(): OSState {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as OSState;
-      if (parsed && parsed.v === 4 && Array.isArray(parsed.projects)) {
-        if (!parsed.providerConfig) parsed.providerConfig = structuredClone(DEFAULT_PROVIDER_CONFIG);
-        if (!parsed.recommendations) parsed.recommendations = [];
-        if (!parsed.workspace) {
-          parsed.workspace = { name: "Founder Workspace", founder: "Founder", onboarded: true, createdAt: parsed.startedAt };
-        }
+      if (isValidState(parsed)) {
+        normalizeProviderConfig(parsed);
         return parsed;
       }
+      /* shape drifted between builds → wipe and reseed rather than crash */
+      localStorage.removeItem(LS_KEY);
     }
   } catch {
     /* corrupted storage → reseed */
   }
-  return createInitialState(now);
+  try {
+    return createInitialState(now);
+  } catch {
+    /* absolute last resort — never render a blank screen */
+    return {
+      v: 6, seed: 42, paused: false, onboarded: false, autonomy: "ASSISTED",
+      currentMemberId: null, activeOrganizationId: null, activeWorkspaceId: null,
+      activeProjectId: null, startedAt: now,
+      providerConfig: structuredClone(DEFAULT_PROVIDER_CONFIG),
+      organizations: [], members: [], teams: [], workspaces: [], integrations: [], billings: [],
+      projects: [], goals: [], tasks: [], runs: [], artifacts: [], risks: [],
+      reviews: [], aggregates: [], approvals: [], toolExecs: [], events: [],
+      memories: [], learnings: [], metrics: [], reasoning: [], chat: [], recommendations: [],
+    };
+  }
 }
 
 interface OSActions {
@@ -44,6 +84,7 @@ interface OSActions {
   skipPlanning: () => void;
   chat: (text: string) => void;
   setActive: (id: string) => void;
+  setWorkspace: (id: string) => void;
   retryTask: (id: string) => void;
   queueRecommendation: (id: string) => void;
   dismissRecommendation: (id: string) => void;
@@ -92,6 +133,7 @@ export function OSProvider({ children }: { children: ReactNode }) {
       skipPlanning: () => dispatch({ type: "SKIP_PLANNING", now: Date.now() }),
       chat: (text) => dispatch({ type: "CHAT", text, now: Date.now() }),
       setActive: (id) => dispatch({ type: "SET_ACTIVE", id }),
+      setWorkspace: (id) => dispatch({ type: "SET_WORKSPACE", id }),
       retryTask: (id) => dispatch({ type: "RETRY_TASK", id, now: Date.now() }),
       queueRecommendation: (id) => dispatch({ type: "QUEUE_RECOMMENDATION", id, now: Date.now() }),
       dismissRecommendation: (id) => dispatch({ type: "DISMISS_RECOMMENDATION", id }),
@@ -122,7 +164,29 @@ export function useActions(): OSActions {
   return a;
 }
 
+export function useOrganization() {
+  const s = useOS();
+  return s.organizations.find((o) => o.id === s.activeOrganizationId) ?? s.organizations[0] ?? null;
+}
+
+export function useActiveWorkspace() {
+  const s = useOS();
+  return s.workspaces.find((w) => w.id === s.activeWorkspaceId) ?? s.workspaces[0] ?? null;
+}
+
+/* projects scoped to the active workspace (multi-tenant isolation) */
+export function useWorkspaceProjects() {
+  const s = useOS();
+  const wsId = s.activeWorkspaceId;
+  return s.projects.filter((p) => p.workspaceId === wsId);
+}
+
 export function useActiveProject() {
   const s = useOS();
-  return s.projects.find((p) => p.id === s.activeProjectId) ?? s.projects[s.projects.length - 1] ?? null;
+  const wsProjects = s.projects.filter((p) => p.workspaceId === s.activeWorkspaceId);
+  return (
+    wsProjects.find((p) => p.id === s.activeProjectId) ??
+    wsProjects[wsProjects.length - 1] ??
+    null
+  );
 }

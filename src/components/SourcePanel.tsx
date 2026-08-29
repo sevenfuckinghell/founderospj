@@ -36,7 +36,7 @@ export function SourcePanel() {
       for (const f of SOURCE_FILES) root.file(f.path, f.content);
       root.file(
         "SETUP.txt",
-        `FOUNDER OS — SOURCE EXPORT\n==========================\n\n${SOURCE_FILES.length} files · ${fmtBytes(total)} uncompressed\n\nRun it:\n  npm install\n  npm run dev\n\nBuild it:\n  npm run build   → deployable static app in dist/\n\nNo API keys needed — the deterministic demo engine runs everything.\n`,
+        `FOUNDER OS — SOURCE EXPORT\n==========================\n\n${SOURCE_FILES.length} files · ${fmtBytes(total)} uncompressed\n\nRun the console:\n  npm install\n  npm run dev\n\nBuild it:\n  npm run build   → deployable static app in dist/\n\nRun the full production topology (see README):\n  docker compose up   → web + api + worker + postgres + redis\n\nNo API keys needed for the console — the deterministic demo engine runs\neverything. server/ holds the FastAPI control plane, queue worker,\nPostgres schema and compose file for real deployment.\n`,
       );
       const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 7 } });
       downloadBlob(blob, "founder-os-source.zip");

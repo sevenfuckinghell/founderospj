@@ -6,6 +6,9 @@ import { pendingApprovals, truncate, fmtTime } from "../engine/engines";
 import type { Autonomy, RiskLevel } from "../types";
 import { ProviderPanel } from "./ProviderPanel";
 import { SourcePanel } from "./SourcePanel";
+import { ArchitecturePanel } from "./Architecture";
+import { TopologyPanel } from "./Topology";
+import { TenancyPanel } from "./Tenancy";
 
 /* ================= APPROVALS ================= */
 
@@ -247,19 +250,14 @@ export function SettingsView() {
   const s = useOS();
   const a = useActions();
   const [confirmReset, setConfirmReset] = useState(false);
-  const [openIntegration, setOpenIntegration] = useState<string | null>(null);
-
-  const integrations = [
-    { id: "github", name: "GitHub", env: "GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET" },
-    { id: "google", name: "Google (Calendar, Mail)", env: "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET" },
-    { id: "slack", name: "Slack", env: "SLACK_CLIENT_ID / SLACK_CLIENT_SECRET" },
-    { id: "notion", name: "Notion", env: "NOTION_TOKEN" },
-    { id: "linear", name: "Linear", env: "LINEAR_API_KEY" },
-  ];
 
   return (
     <div className="space-y-4">
+      <TenancyPanel />
       <ProviderPanel />
+      <Panel title="Runtime architecture — the stack executing right now" delay={40} right={<span className="chip border-cy/30 text-cy">live</span>}>
+        <ArchitecturePanel />
+      </Panel>
       <div className="grid gap-4 xl:grid-cols-2">
       <Panel title="Autonomy level — configurable, never bypasses permissions" delay={0}>
         <div className="space-y-2">
@@ -323,29 +321,6 @@ export function SettingsView() {
 
         <Panel title="Source code & export — take the whole product with you" delay={120}>
           <SourcePanel />
-        </Panel>
-
-        <Panel title="Integrations" delay={140}>
-          <ul className="space-y-2">
-            {integrations.map((it) => (
-              <li key={it.id} className="rounded-md border border-line bg-ink-900/50">
-                <button className="flex w-full items-center gap-3 px-3 py-2.5 text-left" onClick={() => setOpenIntegration(openIntegration === it.id ? null : it.id)}>
-                  <Icon name="branch" size={14} className="text-mut" />
-                  <span className="flex-1 text-[12.5px] font-medium">{it.name}</span>
-                  <span className="chip border-amber/25 text-amber">not configured</span>
-                  <Icon name="arrow" size={12} className={cx("text-mut transition-transform", openIntegration === it.id && "rotate-90")} />
-                </button>
-                {openIntegration === it.id && (
-                  <div className="slide-in border-t border-line px-3 py-2.5">
-                    <p className="font-mono text-[10.5px] text-sub">required env: <span className="text-cy">{it.env}</span></p>
-                    <p className="mt-1 text-[11px] leading-snug text-mut">
-                      Requires credentials on the API side — never in the browser. In demo mode, {it.name} tools execute against the mock executor and are labeled as simulated in the audit log.
-                    </p>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
         </Panel>
 
         <Panel title="Tool registry" delay={180}>

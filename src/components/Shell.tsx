@@ -7,7 +7,7 @@ import { modelById } from "../providers";
 
 export type ViewId =
   | "dashboard" | "command" | "goals" | "projects" | "tasks" | "agents"
-  | "brain" | "reviews" | "approvals" | "artifacts" | "insights" | "events" | "settings";
+  | "brain" | "reviews" | "approvals" | "artifacts" | "insights" | "backlog" | "events" | "settings";
 
 const NAV: { section: string; items: { id: ViewId; label: string; icon: string }[] }[] = [
   {
@@ -45,6 +45,7 @@ const NAV: { section: string; items: { id: ViewId; label: string; icon: string }
     section: "Learn",
     items: [
       { id: "insights", label: "Insights", icon: "chart" },
+      { id: "backlog", label: "Backlog", icon: "layers" },
       { id: "settings", label: "Settings", icon: "gear" },
     ],
   },
@@ -62,6 +63,7 @@ const TITLES: Record<ViewId, string> = {
   approvals: "Approvals & Gates",
   artifacts: "Artifact Store",
   insights: "Insight & Learning",
+  backlog: "Production Backlog",
   events: "Events & Audit Log",
   settings: "System Settings",
 };
@@ -78,7 +80,9 @@ export function Shell({ view, setView, onToggleChat, chatOpen, children }: {
   const pend = pendingApprovals(s).length;
   const runningAgents = s.runs.filter((r) => r.status === "running").length;
   const tickerEvents = s.events.slice(-14).reverse();
-  const active = s.projects.find((p) => p.id === s.activeProjectId) ?? s.projects[s.projects.length - 1];
+  const org = s.organizations.find((o) => o.id === s.activeOrganizationId);
+  const wsProjects = s.projects.filter((p) => p.workspaceId === s.activeWorkspaceId);
+  const active = wsProjects.find((p) => p.id === s.activeProjectId) ?? wsProjects[wsProjects.length - 1];
 
   return (
     <div className="relative flex h-full">
@@ -143,13 +147,38 @@ export function Shell({ view, setView, onToggleChat, chatOpen, children }: {
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b border-line bg-ink-900/70 px-5 py-3 backdrop-blur-sm">
           <h1 className="font-display text-[17px] font-bold tracking-wide">{TITLES[view]}</h1>
+
+          {/* org → workspace → project tenancy trail */}
+          <div className="ml-2 hidden items-center gap-1.5 md:flex">
+            <span
+              className="chip cursor-pointer border-line2 text-sub transition-colors hover:border-mint/40 hover:text-mint"
+              onClick={() => setView("settings")}
+              title={`${org?.name ?? "Organization"} — manage in Settings`}
+            >
+              <Icon name="folder" size={10} />
+              {org?.name ?? "Org"}
+            </span>
+            <span className="text-mut">/</span>
+            <select
+              className="input w-auto cursor-pointer py-1 text-[11.5px]"
+              value={s.activeWorkspaceId ?? ""}
+              onChange={(e) => a.setWorkspace(e.target.value)}
+              title="Switch workspace"
+            >
+              {s.workspaces.map((w) => (
+                <option key={w.id} value={w.id} className="bg-ink-850">{w.name}</option>
+              ))}
+            </select>
+            <span className="text-mut">/</span>
+          </div>
+
           {active && (
             <select
-              className="input ml-2 w-auto cursor-pointer py-1.5 text-[12px]"
+              className="input w-auto cursor-pointer py-1.5 text-[12px]"
               value={active.id}
               onChange={(e) => a.setActive(e.target.value)}
             >
-              {s.projects.map((p) => (
+              {wsProjects.map((p) => (
                 <option key={p.id} value={p.id} className="bg-ink-850">
                   {p.name}{p.demo ? " (demo)" : ""}
                 </option>
@@ -164,10 +193,10 @@ export function Shell({ view, setView, onToggleChat, chatOpen, children }: {
             >
               <span className={cx(
                 "h-1.5 w-1.5 rounded-full",
-                Object.values(s.providerConfig.verified).some(Boolean) ? "bg-mint pulse-dot"
-                : s.providerConfig.roles.reasoning.startsWith("demo-") ? "bg-amber pulse-dot-amber" : "bg-cy",
+                Object.values(s.providerConfig.verified ?? {}).some(Boolean) ? "bg-mint pulse-dot"
+                : (s.providerConfig.roles?.reasoning ?? "demo-reason-4").startsWith("demo-") ? "bg-amber pulse-dot-amber" : "bg-cy",
               )} />
-              <span className="font-mono text-[10.5px] text-sub">{modelById(s.providerConfig.roles.reasoning).name}</span>
+              <span className="font-mono text-[10.5px] text-sub">{modelById(s.providerConfig.roles?.reasoning ?? "demo-reason-4").name}</span>
               <Icon name="gear" size={11} className="text-mut" />
             </button>
             <span className="hidden font-mono text-[11px] text-mut md:block">

@@ -48,9 +48,52 @@ src/
 └── components/             # dashboard, command center, workflow DAG, governance, dossiers…
 ```
 
+Runtime stack (rendered live in Settings → Runtime architecture):
+
+```
+Browser
+ ├── React            # view layer, subscribes to the store
+ ├── reducer          # pure state transitions; domain events are the log
+ ├── orchestrator     # Action Engine — owns the workflow state machine
+ ├── planner          # goal → task DAG, risks, review council, pipeline
+ ├── memory           # working · episodic · semantic · preference · procedural
+ ├── approvals        # HIGH / CRITICAL tools always gate on the founder
+ ├── tool execution   # permission-checked, audited, risk-classed registry
+ └── localStorage     # versioned persistence, survives reloads
+```
+
 Design principle: **the application owns state, permissions, tasks, memory, and execution.
 The LLM is a swappable reasoning component.** Deterministic software handles deterministic
 work; AI handles reasoning, planning, and generation.
+
+## Production deployment
+
+The repo ships a server blueprint matching the production topology exactly:
+
+```
+Web App ── HTTPS / SSE ──> API / Control Plane (auth · RBAC · policy · /api/v1)
+                              │                       │
+                          PostgreSQL             Redis / Queue
+                              └─────────┬─────────────┘
+                                  Worker / Agent
+                                   (planner · research · code)
+                                  ┌─────┴──────┐
+                              AI Gateway   Tool Gateway
+                                                 │
+                     GitHub · Slack · Gmail · Calendar · Cloud
+```
+
+- `server/main.py` — FastAPI control plane: bearer auth, role checks, the
+  autonomy policy matrix, goal/task/approval routes, SSE event stream
+- `server/worker.py` — Redis queue consumer: agents, backoff, dead-letter
+  queue, `MAX_RETRIES = 2` (no unbounded loops), permission-checked tools
+- `server/schema.sql` — 16 tables, UUID keys, org isolation, indexed hot paths
+- `docker-compose.yml` — postgres · redis · api · worker · web
+
+Bring the full stack up with `docker compose up`. Secrets (`AI_API_KEY`,
+`AUTH_SECRET`, OAuth client credentials) live only in the api/worker
+environment — the browser never sees them. The browser demo runs the same
+contracts in-process, so the blueprint slots in without UI changes.
 
 ## Configuration
 

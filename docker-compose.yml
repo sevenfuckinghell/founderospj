@@ -1,0 +1,68 @@
+# --------------------------------------------------------------------
+# Founder OS — local production topology, one command:
+#   docker compose up
+#
+#   web (static build) → api (control plane) → postgres + redis
+#        → worker (agents) → AI Gateway / Tool Gateway → integrations
+# Secrets live ONLY in the api/worker environment — never in the browser.
+# --------------------------------------------------------------------
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: founder_os
+      POSTGRES_USER: founder
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-founder-dev}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./server/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U founder -d founder_os"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: ./server
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    environment:
+      DATABASE_URL: postgresql://founder:${POSTGRES_PASSWORD:-founder-dev}@postgres:5432/founder_os
+      REDIS_URL: redis://redis:6379/0
+      AUTH_SECRET: ${AUTH_SECRET:-change-me}
+      CORS_ORIGINS: http://localhost:5173,http://localhost:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  worker:
+    build: ./server
+    command: python worker.py
+    environment:
+      DATABASE_URL: postgresql://founder:${POSTGRES_PASSWORD:-founder-dev}@postgres:5432/founder_os
+      REDIS_URL: redis://redis:6379/0
+      AI_API_KEY: ${AI_API_KEY:-}
+    depends_on:
+      - api
+
+  web:
+    image: nginx:alpine
+    volumes:
+      - ./dist:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

@@ -27,6 +27,7 @@ export type Action =
   | { type: "SKIP_PLANNING"; now: number }
   | { type: "CHAT"; text: string; now: number }
   | { type: "SET_ACTIVE"; id: string }
+  | { type: "SET_WORKSPACE"; id: string }
   | { type: "RETRY_TASK"; id: string; now: number }
   | { type: "QUEUE_RECOMMENDATION"; id: string; now: number }
   | { type: "DISMISS_RECOMMENDATION"; id: string }
@@ -451,8 +452,12 @@ function submitGoal(s: OSState, input: GoalInput, now: number) {
   const deadlineBoost = input.deadline ? 1 : 0;
   let tasks = assembleTasks(domain, pid, now, 1);
   tasks = applyPriorities(tasks, deadlineBoost);
+  const wsId = s.activeWorkspaceId ?? WS_CORE_ID;
+  const ws = s.workspaces.find((w) => w.id === wsId);
   const project: Project = {
     id: pid,
+    organizationId: ws?.organizationId ?? ORG_ID,
+    workspaceId: wsId,
     name: DOMAIN_LABEL[domain] ?? "New Venture",
     demo: false,
     goalId: uid("goal"),
@@ -712,19 +717,57 @@ function handleCommand(s: OSState, raw: string, now: number): string {
   return "I didn't map that to a system function — I don't fake actions. Try “status”, “biggest risks”, “why is X waiting”, “reprioritize”, or “help”.";
 }
 
+/* ---------------- tenancy seed (multi-tenant hierarchy) ------------- */
+
+const ORG_ID = "org_founder";
+const WS_CORE_ID = "ws_core";
+const WS_GROWTH_ID = "ws_growth";
+const MEMBER_OWNER_ID = "mem_owner";
+
+function seedTenancy(s: OSState, now: number) {
+  s.organizations.push({ id: ORG_ID, name: "Founder HQ", createdAt: now - 40 * 24 * 3600_000 });
+  s.members.push(
+    { id: MEMBER_OWNER_ID, organizationId: ORG_ID, name: "Founder", email: "founder@founderhq.io", role: "OWNER", status: "ACTIVE", joinedAt: now - 40 * 24 * 3600_000 },
+    { id: "mem_ops", organizationId: ORG_ID, name: "Riley Ops", email: "riley@founderhq.io", role: "ADMIN", status: "ACTIVE", joinedAt: now - 32 * 24 * 3600_000 },
+    { id: "mem_eng", organizationId: ORG_ID, name: "Sam Build", email: "sam@founderhq.io", role: "MEMBER", status: "ACTIVE", joinedAt: now - 21 * 24 * 3600_000 },
+    { id: "mem_guest", organizationId: ORG_ID, name: "Guest Auditor", email: "audit@founderhq.io", role: "VIEWER", status: "ACTIVE", joinedAt: now - 9 * 24 * 3600_000 },
+    { id: "mem_invite", organizationId: ORG_ID, name: "Jordan Scout", email: "jordan@founderhq.io", role: "MEMBER", status: "INVITED", joinedAt: now - 2 * 24 * 3600_000 },
+  );
+  s.teams.push(
+    { id: "team_core", organizationId: ORG_ID, name: "Core Build", memberIds: [MEMBER_OWNER_ID, "mem_ops", "mem_eng"] },
+    { id: "team_growth", organizationId: ORG_ID, name: "Growth", memberIds: [MEMBER_OWNER_ID, "mem_ops"] },
+  );
+  s.workspaces.push(
+    { id: WS_CORE_ID, organizationId: ORG_ID, name: "Core Product", description: "Product build, execution and delivery.", accent: "mint", createdAt: now - 38 * 24 * 3600_000 },
+    { id: WS_GROWTH_ID, organizationId: ORG_ID, name: "Growth & Marketing", description: "Acquisition, content and campaigns.", accent: "amber", createdAt: now - 12 * 24 * 3600_000 },
+  );
+  s.billings.push({ plan: "Scale", seatsTotal: 10, monthlyTokenBudget: 20_000_000, renewal: "Mar 14, 2026", cardLast4: "4242" });
+  s.integrations.push(
+    { id: "int_github_core", workspaceId: WS_CORE_ID, provider: "GitHub", status: "CONNECTED", scopes: ["repo:read", "repo:write"], connectedAt: now - 30 * 24 * 3600_000 },
+    { id: "int_slack_core", workspaceId: WS_CORE_ID, provider: "Slack", status: "CONNECTED", scopes: ["chat:write"], connectedAt: now - 28 * 24 * 3600_000 },
+    { id: "int_notion_growth", workspaceId: WS_GROWTH_ID, provider: "Notion", status: "NOT_CONNECTED", scopes: [] },
+    { id: "int_linear_growth", workspaceId: WS_GROWTH_ID, provider: "Linear", status: "NOT_CONNECTED", scopes: [] },
+  );
+  s.currentMemberId = MEMBER_OWNER_ID;
+  s.activeOrganizationId = ORG_ID;
+  s.activeWorkspaceId = WS_CORE_ID;
+}
+
 /* ---------------- seed (demo project, per spec §50) ---------------- */
 
 function seedState(now: number): OSState {
   const s: OSState = {
-    v: 4, seed: 20260214, paused: false, autonomy: "ASSISTED",
+    v: 6, seed: 20260214, paused: false, onboarded: false, autonomy: "ASSISTED",
+    currentMemberId: null, activeOrganizationId: null, activeWorkspaceId: null,
     activeProjectId: null, startedAt: now - 3 * 3600_000,
-    workspace: { name: "Founder Workspace", founder: "Founder", onboarded: false, createdAt: now },
     providerConfig: structuredClone(DEFAULT_PROVIDER_CONFIG),
+    organizations: [], members: [], teams: [], workspaces: [], integrations: [], billings: [],
     projects: [], goals: [], tasks: [], runs: [], artifacts: [], risks: [],
     reviews: [], aggregates: [], approvals: [], toolExecs: [], events: [],
     memories: [], learnings: [], metrics: [], reasoning: [], chat: [],
     recommendations: [],
   };
+  seedTenancy(s, now);
   const H = 3600_000;
   const t0 = now - 3 * H;
   const domain = "healthcare";
@@ -737,7 +780,8 @@ function seedState(now: number): OSState {
     budget: "$25,000", deadline: "60 days",
   };
   s.projects.push({
-    id: pid, name: "AI Healthcare SaaS", demo: true, goalId: "goal_demo",
+    id: pid, organizationId: ORG_ID, workspaceId: WS_CORE_ID,
+    name: "AI Healthcare SaaS", demo: true, goalId: "goal_demo",
     phase: "EXECUTING", createdAt: t0, planVersion: 1, planRejectedOnce: false,
     pipeline: pipelineScript(domain, input, 11, 5).map((st) => ({ ...st, status: "done" as const, shown: st.lines.length })),
     regenCooldown: 0, measureTicks: 0, reprioritized: false, domain,
@@ -866,19 +910,23 @@ export function reducer(state: OSState, action: Action): OSState {
       return advance(state, action.now);
     case "COMPLETE_ONBOARDING": {
       const base = action.loadDemo ? seedState(action.now) : emptyState(action.now);
-      base.workspace = {
-        name: action.name.trim() || "Founder Workspace",
-        founder: action.founder.trim() || "Founder",
-        onboarded: true,
-        createdAt: action.now,
-      };
+      const orgName = action.name.trim() || "Founder HQ";
+      const founderName = action.founder.trim() || "Founder";
+      base.onboarded = true;
+      base.organizations = base.organizations.map((o) =>
+        o.id === ORG_ID ? { ...o, name: orgName } : o,
+      );
+      base.members = base.members.map((m) =>
+        m.id === MEMBER_OWNER_ID ? { ...m, name: founderName, email: `${founderName.toLowerCase().replace(/[^a-z]+/g, ".")}@${orgName.toLowerCase().replace(/[^a-z]+/g, "")}.io` } : m,
+      );
       base.autonomy = action.autonomy;
       base.providerConfig.roles.reasoning = action.reasoningModel;
       base.providerConfig.roles.fast = action.fastModel;
+      const ws = base.workspaces.find((w) => w.id === base.activeWorkspaceId);
       if (action.loadDemo) {
-        emit(base, base.activeProjectId ?? "system", "WORKSPACE_READY", `Demo workspace loaded for ${base.workspace.founder}`, action.now);
+        emit(base, base.activeProjectId ?? "system", "WORKSPACE_READY", `Demo workspace loaded for ${founderName}`, action.now);
       }
-      say(base, `Welcome, ${base.workspace.founder}. Workspace “${base.workspace.name}” is live — autonomy ${action.autonomy}, reasoning on ${resolveModel(base.providerConfig, "planner")}. ${action.loadDemo ? "The Healthcare SaaS demo is mid-execution and one approval is waiting on you." : "Give me your first goal whenever you're ready."}`, action.now);
+      say(base, `Welcome, ${founderName}. “${orgName}” is live — workspace “${ws?.name ?? "Core Product"}”, autonomy ${action.autonomy}, reasoning on ${resolveModel(base.providerConfig, "planner")}. ${action.loadDemo ? "The Healthcare SaaS demo is mid-execution and one approval is waiting on you." : "Give me your first goal whenever you're ready."}`, action.now);
       return base;
     }
     case "SUBMIT_GOAL": {
@@ -921,6 +969,16 @@ export function reducer(state: OSState, action: Action): OSState {
     case "SET_ACTIVE": {
       const s = clone(state);
       s.activeProjectId = action.id;
+      return s;
+    }
+    case "SET_WORKSPACE": {
+      const s = clone(state);
+      s.activeWorkspaceId = action.id;
+      /* re-anchor the active project to one inside the new workspace */
+      const inWs = s.projects.filter((p) => p.workspaceId === action.id);
+      if (!s.projects.some((p) => p.id === s.activeProjectId && p.workspaceId === action.id)) {
+        s.activeProjectId = inWs[inWs.length - 1]?.id ?? null;
+      }
       return s;
     }
     case "RETRY_TASK": {
@@ -968,7 +1026,17 @@ export function reducer(state: OSState, action: Action): OSState {
     }
     case "RESET": {
       const s = seedState(action.now);
-      s.workspace = state.workspace;
+      /* keep the founder's tenancy identity + provider config across resets */
+      s.organizations = state.organizations;
+      s.members = state.members;
+      s.teams = state.teams;
+      s.workspaces = state.workspaces;
+      s.billings = state.billings;
+      s.integrations = state.integrations;
+      s.currentMemberId = state.currentMemberId;
+      s.activeOrganizationId = state.activeOrganizationId;
+      s.activeWorkspaceId = state.activeWorkspaceId;
+      s.onboarded = state.onboarded;
       s.providerConfig = state.providerConfig;
       return s;
     }
@@ -981,15 +1049,17 @@ export function reducer(state: OSState, action: Action): OSState {
 
 function emptyState(now: number): OSState {
   const s: OSState = {
-    v: 4, seed: (now % 2147483647) || 42, paused: false, autonomy: "ASSISTED",
+    v: 6, seed: (now % 2147483647) || 42, paused: false, onboarded: false, autonomy: "ASSISTED",
+    currentMemberId: null, activeOrganizationId: null, activeWorkspaceId: null,
     activeProjectId: null, startedAt: now,
-    workspace: { name: "Founder Workspace", founder: "Founder", onboarded: false, createdAt: now },
     providerConfig: structuredClone(DEFAULT_PROVIDER_CONFIG),
+    organizations: [], members: [], teams: [], workspaces: [], integrations: [], billings: [],
     projects: [], goals: [], tasks: [], runs: [], artifacts: [], risks: [],
     reviews: [], aggregates: [], approvals: [], toolExecs: [], events: [],
     memories: [], learnings: [], metrics: [], reasoning: [], chat: [],
     recommendations: [],
   };
+  seedTenancy(s, now);
   emit(s, "system", "SYSTEM_READY", "Founder OS booted — console idle, awaiting first goal", now);
   say(s, "Console online. No projects yet — give me a goal and I'll run the full pipeline: plan → council review → your approval → build → measure → learn.", now);
   return s;
