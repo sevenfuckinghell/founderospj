@@ -59,6 +59,7 @@ import desktopPreload from "../desktop/preload.cjs?raw";
 import desktopPkg from "../desktop/package.json?raw";
 import runLocalBat from "../scripts/run-local.bat?raw";
 import buildDesktopBat from "../scripts/build-desktop.bat?raw";
+import pushGithubBat from "../scripts/push-github.bat?raw";
 import readmeWindows from "../README-WINDOWS.md?raw";
 import webManifest from "../public/manifest.webmanifest?raw";
 
@@ -116,6 +117,14 @@ export const SOURCE_FILES: SourceFile[] = [
   { path: "server/worker.py", content: serverWorker },
   { path: "server/schema.sql", content: serverSchema },
   { path: "docker-compose.yml", content: dockerCompose },
+  { path: "desktop/main.cjs", content: desktopMain },
+  { path: "desktop/preload.cjs", content: desktopPreload },
+  { path: "desktop/package.json", content: desktopPkg },
+  { path: "scripts/run-local.bat", content: runLocalBat },
+  { path: "scripts/build-desktop.bat", content: buildDesktopBat },
+  { path: "scripts/push-github.bat", content: pushGithubBat },
+  { path: "README-WINDOWS.md", content: readmeWindows },
+  { path: "public/manifest.webmanifest", content: webManifest },
 ];
 
 export const byteSize = (s: string): number => new TextEncoder().encode(s).length;

@@ -62,6 +62,20 @@ Browser
  └── localStorage     # versioned persistence, survives reloads
 ```
 
+## Publishing to GitHub
+
+```bash
+git init -b main
+git add -A
+git commit -m "Founder OS v4.2 — AI operating console"
+git remote add origin https://github.com/YOU/founder-os.git
+git push -u origin main
+```
+
+On Windows you can double-click `scripts/push-github.bat` instead — it runs the
+whole sequence and prompts for the repository URL. `.gitignore` already keeps
+`.env`, keys, `node_modules/`, `dist/` and `desktop/release/` out of the push.
+
 Design principle: **the application owns state, permissions, tasks, memory, and execution.
 The LLM is a swappable reasoning component.** Deterministic software handles deterministic
 work; AI handles reasoning, planning, and generation.
